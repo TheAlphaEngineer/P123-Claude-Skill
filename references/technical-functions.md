@@ -80,6 +80,11 @@ Many functions also have `_D` (calendar days) and `_W` (weeks) variants.
 | `PctAvgDailyTot(bars [, offset])` | % of liquidity traded |
 | `UpDownRatio(bars, offset)` | Up/down volume ratio |
 
+**Unit:** `AvgDailyTot` returns **plain dollars**, not thousands (verified 2026-09-29: IBM `AvgDailyTot(20)` ≈
+918,509,430 = `Close(0)` × `AvgVol(20)`). Write $100K a day as `AvgDailyTot(20) > 100000`, not `> 100`.
+`MedianDailyTot` and `MinLiquidity` are dollar-volume functions too; assume the same scale, but check with a
+`data()` call if it matters.
+
 **Pre-built volume/price factors:**
 
 | Factor | Description |

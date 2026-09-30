@@ -334,7 +334,7 @@ Items: `#EPS`, `#EPS_GAAP`, `#SALES`, `#EBITDA`, `#EBIT`, `#NET`, `#PTI`, `#FCF`
 
 | Factor | Description |
 |--------|-------------|
-| `AvgDailyTot(N)` | Avg daily dollar volume over N bars |
+| `AvgDailyTot(N)` | Avg daily dollar volume over N bars, in **plain dollars** ($100K = `100000`, not thousands) |
 
 ### Estimates
 

@@ -161,8 +161,8 @@ Minimal correct example:
 
 ```
 // Universe filter
-MktCap > 500
-AvgDailyTot(63) > 500
+MktCap > 500                 // $500M: MktCap is in $ millions
+AvgDailyTot(63) > 500000     // $500K/day: AvgDailyTot is in plain dollars, NOT thousands
 
 // Value
 PEExclXorTTM < 20
@@ -187,9 +187,9 @@ result = client.screen_run({
         'maxNumHoldings': 25,
         'method': 'long',
         'ranking': {'formula': 'PEExclXorTTM', 'lowerIsBetter': True},
-        'rules': [
-            {'formula': 'MktCap > 1000', 'type': 'long'},
-            {'formula': 'ROE%TTM > 10', 'type': 'long'}
+        'rules': [                          # no 'type' field on long-only screens
+            {'formula': 'MktCap > 1000'},
+            {'formula': 'ROE%TTM > 10'}
         ]
     },
     'asOfDt': '2025-01-01'
@@ -211,6 +211,11 @@ result = client.data_universe({
 
 ## Important Notes
 
+- **Units differ by function (this has caused wrong liquidity filters more than once).** `MktCap` and
+  financial statement items are in **$ millions** (`MktCap > 500` = $500M). Dollar-volume functions
+  (`AvgDailyTot()`, `MedianDailyTot()`) and the API's `rank_perf` `minLiquidity` are in **plain dollars**:
+  $100K a day = `100000`, not `100`. Verified 2026-09-29 (IBM `AvgDailyTot(20)` ≈ 918,509,430 = Close × AvgVol;
+  `minLiquidity` 1e8 still returned populated buckets, which would be impossible if the unit were thousands).
 - All P123 formulas are **point-in-time** — they evaluate using only data available on the as-of date
 - `NA` handling is critical: use `FALLBACK` (fills from prior period), `KEEPNA`, or `ZERONA`
 - Screen rules are **AND** conditions (all must be true); use `OR` keyword for disjunction
