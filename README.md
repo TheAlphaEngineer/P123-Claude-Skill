@@ -51,15 +51,21 @@ This skill was cross-referenced line-by-line against the official [P123 528-page
 ### Claude Code (recommended)
 
 ```bash
-git clone https://github.com/YOUR_USER/P123-Claude-Skill.git
+git clone https://github.com/TheAlphaEngineer/P123-Claude-Skill.git
 cp -r P123-Claude-Skill ~/.claude/skills/portfolio123/
 ```
 
-Or from the `.skill` package:
+Or from the `.skill` package (a ZIP with a `portfolio123/` folder at its root):
 
 ```bash
-unzip portfolio123.skill -d ~/.claude/skills/portfolio123/
+unzip portfolio123.skill -d ~/.claude/skills/
 ```
+
+### Claude.ai / Claude Desktop
+
+Go to **Customize → Skills**, click **+ → Create skill → Upload a skill** and choose `portfolio123.skill`
+(rename it to `portfolio123.zip` if the file picker only accepts `.zip`). To update an earlier upload,
+delete the old `portfolio123` skill first, then upload the new package.
 
 ### Cursor
 
