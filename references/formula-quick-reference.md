@@ -370,8 +370,8 @@ SetVar(@sue, EPSSUE(0, QTR))
 ### Liquidity filter
 
 ```
-MktCap > 500
-AvgDailyTot(63) > 500        // avg daily dollar volume > $500K over 63 bars
+MktCap > 500                  // $500M: MktCap is in $ millions
+AvgDailyTot(63) > 500000      // avg daily dollar volume > $500K over 63 bars (plain dollars, NOT thousands)
 Close(0) > 5                  // minimum share price
 ```
 

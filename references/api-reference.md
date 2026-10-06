@@ -55,7 +55,7 @@ client.data({
 }, True)  # True = Pandas DataFrame, False = JSON
 ```
 
-**Note**: Requires data license from FactSet or Compustat for full access. Without license, only IBM, MSFT, INTC with 5 years history.
+**Note**: Requires data license from FactSet or Compustat for full access. Without license, only IBM, MSFT, INTC with 5 years history (older dates fail with "You can only test historical data after <date>"). `startDt` must differ from `endDt`; the same date fails with "Invalid period".
 
 ### data_prices() — EOD prices (1 credit per call)
 
@@ -114,8 +114,8 @@ See `references/macros-constants.md` for the complete list with descriptions.
 ```python
 client.universe_update({
     'rules': [
-        'MktCap > 500',
-        'AvgDailyTot(63) > 200',
+        'MktCap > 500',              # $500M (MktCap is in $ millions)
+        'AvgDailyTot(63) > 200000',  # $200K/day (plain dollars, NOT thousands)
         'Close(0) > 5'
     ],
     'type': 'stock',
@@ -165,14 +165,29 @@ client.rank_perf({
     'slippage': 0.25,
     'benchmark': 'SPY',
     'minPrice': 3,
-    'minLiquidity': 5000,
-    'outputType': 'ann',        # ann (annualized) | perf (cumulative)
+    'minLiquidity': 100000,     # avg daily $ volume in PLAIN DOLLARS: 100000 = $100K (NOT thousands)
+    'outputType': 'ann',        # ann (annualized) | perf (cumulative index series)
     'transType': 'Long',        # Long | Short
     'rankingMethod': 2,
+    'pitMethod': 'Complete',    # Complete (default, = GUI "Prelim: Exclude") | Prelim
     'maxNAs': 999,
-    'maxReturn': 200
+    'maxReturn': 200            # omit (or 0) for no return cap
 })
 ```
+
+**`minLiquidity` unit (verified 2026-09-29):** plain dollars. A run with `minLiquidity` 1e8 still returned
+populated buckets; in thousands that would be $100B a day, which nothing trades. Scripts that passed `100`
+assuming thousands were running with effectively no liquidity filter ($100 a day).
+
+**Output:**
+- `ann`: `bucketAnnRet` (B1 = bottom of the ranking … last = top) and `benchmarkAnnRet`.
+- `perf`: `dates` (rebalance dates), `bucketSeries` (index levels starting at 100, one list per bucket) and
+  `benchmarkSeries` (benchmark price levels). P123 annualizes as (last/first)^(365.25/days) − 1 between the
+  first and last rebalance date (the last one on or before `endDt`); this reproduces `ann` exactly.
+- **No universe line.** The GUI's equal-weighted "Universe" return is not returned. To get it, either run a
+  `screen_backtest` with `maxNumHoldings: 0` and rules `Close(0) >= <minPrice>` and
+  `AvgDailyTot(20) >= <minLiquidity>`, or use `perf` output of a factor with no NAs (e.g. `MktCap`) and average
+  the per-period bucket returns before compounding. The mean of the bucket CAGRs slightly understates it.
 
 ### rank_update() — Update ApiRankingSystem (1 credit)
 
@@ -245,9 +260,9 @@ client.screen_backtest({
         'method': 'long',
         'benchmark': 'SPY',
         'ranking': {'formula': 'PEExclXorTTM', 'lowerIsBetter': True},
-        'rules': [
-            {'formula': 'MktCap > 500', 'type': 'long'},
-            {'formula': 'Close(0) > 5', 'type': 'long'}
+        'rules': [                           # no 'type' field on long-only screens
+            {'formula': 'MktCap > 500'},
+            {'formula': 'Close(0) > 5'}
         ]
     },
     'startDt': '2010-01-01',
