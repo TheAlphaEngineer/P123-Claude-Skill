@@ -21,7 +21,7 @@ with the official `p123api` Python wrapper.
 > global release (all 86 P123 universes with their rules, APAC & Emerging and Global universes, the
 > October redefinition of `ALLFUND`, the removed `ALLFUNDEUR`, accepted currencies
 > and `region` values, the APAC cash-flow gap) and `rank_perf` / simulation-API details. See
-> `CHANGELOG.md` → `[4.2.1-tae.1]`. Everything below is upstream's text.
+> `CHANGELOG.md` → `[4.2.1-tae.1]` and `[4.2.1-tae.2]`. Everything below is upstream's text.
 
 **v4.2.1** is the current upstream release: a patch that settles the `GET /rank` response field (`xml`), the
 real numerator of `DepAmort2GP` (`DepAmortCF`) and how `POST /data` treats its date range.
