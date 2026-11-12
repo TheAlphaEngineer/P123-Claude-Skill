@@ -18,7 +18,8 @@ with the official `p123api` Python wrapper.
 
 > **About this fork (TheAlphaEngineer).** This is upstream v4.2.1 plus
 > `references/global-data.md` and a few API facts verified on a live account: P123's autumn-2026
-> global release (APAC & Emerging and Global universes, the removed `ALLFUNDEUR`, accepted currencies
+> global release (all 86 P123 universes with their rules, APAC & Emerging and Global universes, the
+> October redefinition of `ALLFUND`, the removed `ALLFUNDEUR`, accepted currencies
 > and `region` values, the APAC cash-flow gap) and `rank_perf` / simulation-API details. See
 > `CHANGELOG.md` → `[4.2.1-tae.1]`. Everything below is upstream's text.
 

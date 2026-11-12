@@ -1099,10 +1099,13 @@ the live API on 2026-09-17 with a one-row `screen_run`.
 **Re-checked 2026-11-12, after the October security master and the global release:** every ID above
 still resolves, **except `ALLFUNDEUR`** ("Europe (Incl. Foreign Primary)"), which now answers
 `Universe <ALLFUNDEUR> not found`; P123 retired Europe's foreign-primary universe and re-pointed saved
-systems to `PRIMARYEUR`. New since then: `PRIMARYGLOBAL` and `PRIMARYAPEM`, plus APAC, country and
-frontier universes addressed by display name (`'Japan (Primary)'`, `'Developed APAC'`). Display names
-work for the older universes too. The full list, the removed IDs and the data gaps outside North
-America are in [global-data.md](global-data.md).
+systems to `PRIMARYEUR`. New since then: `PRIMARYGLOBAL`, `PRIMARYAPEM`, `ALLFUNDOLD` and
+`ALLSTOCKSOLD` (`ALLFUND` and `ALLSTOCKS` were redefined in October; the `OLD` IDs keep the previous
+definition and remain the base of P123's US universes such as `Prussell3000`), plus APAC, country and
+regional universes addressed by display name (`'Japan (Primary)'`, `'Developed APAC'`). Display names
+work for the older universes too; numeric universe IDs do not. The full catalogue of P123's 86
+universes with their rules, the removed IDs, a P123 bug in `'Indonesia (Primary)'` and the data gaps
+outside North America are in [global-data.md](global-data.md).
 
 A universe named CDR was reported alongside these and does **not** exist: the server answers
 `Universe <CDR> not found`. The Canadian-dollar CDR universe is `ALLFUNDCDRCAD`.

@@ -9,10 +9,14 @@ on 2026-11-12 with calls that end in an error (no credits), unless dated otherwi
 
 ### Added
 - **`references/global-data.md`**: P123's global release (security master 10-11 Oct 2026, APAC &
-  Emerging in production 31 Oct-2 Nov 2026). New universes `PRIMARYGLOBAL` and `PRIMARYAPEM`;
-  display names accepted as `universe` (`'Japan (Primary)'`, `'Developed APAC'`, `'World Frontier'`,
-  `'China A-Shares'`, 28 country primaries); countries without a country universe; a free way to
-  probe a universe ID; primary versus foreign primary; ticker suffixes and the per-listing
+  Emerging in production 31 Oct-2 Nov 2026). The **full catalogue of P123's 86 P123 Universes**,
+  read in the web app with each universe's base and rules, and checked against the API: 71 resolve
+  by display name, the 13 sector universes, `P123 Invest` and `S&P 500 Sector ETFs` do not, and
+  numeric IDs never do. Preset universes including the new `PRIMARYGLOBAL`, `PRIMARYAPEM`,
+  `ALLFUNDOLD` and `ALLSTOCKSOLD`; `ALLFUND`/`ALLSTOCKS` redefined in October (member counts), with
+  P123's US universes (`Prussell3000`, cap tiers, exchanges, `TRADEUSA`) still on `ALLFUNDOLD`.
+  Two P123 defects: `'Indonesia (Primary)'` uses `ExchCountry("IND")` and holds Indian stocks, and
+  Malaysia is spelled `'Malasya (Primary)'`. A free way to probe a universe ID; primary versus foreign primary; ticker suffixes and the per-listing
   `p123Uid`; `TradesIn`, `ExchCountry`, `Country`, `IsPrimary`, `ExchangeCode` (APAC codes, beta
   renumbering), `FXRate`; the 21 accepted currencies; the live `region` values; the data gaps
   (missing cash flow in JPN/CHN/AUS/HKG/IND, ownership, short interest, survivorship) and P123's

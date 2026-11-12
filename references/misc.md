@@ -1034,9 +1034,12 @@ the official factor totals.
 
 ### Universe IDs
 
-These are the US universe IDs of the 2026-06-09 extraction. For Canada, Europe, multi-region and the
-APAC, Emerging and Global universes added in October-November 2026 (`PRIMARYGLOBAL`, `PRIMARYAPEM`,
-`'Japan (Primary)'` ...), see [global-data.md](global-data.md#universes).
+These are the US universe IDs of the 2026-06-09 extraction. In October 2026 `ALLFUND` and
+`ALLSTOCKS` were redefined (now 13,184 and 14,420 stocks); the previous definitions are `ALLFUNDOLD`
+and `ALLSTOCKSOLD`, which remain the base of P123's own US universes below (Prussell, cap tiers,
+exchanges). For those, for Canada, Europe, multi-region and the APAC, Emerging and Global universes
+added in October-November 2026 (`PRIMARYGLOBAL`, `PRIMARYAPEM`, `'Japan (Primary)'` ...), see
+[global-data.md](global-data.md#universes).
 
 | Code | Description |
 |---|---|

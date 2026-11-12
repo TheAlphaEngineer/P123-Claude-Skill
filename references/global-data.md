@@ -1,14 +1,15 @@
 # Global Data (Europe, APAC & Emerging) - Portfolio123 Reference
 
-<!-- name-whitelist: PRIMARYGLOBAL PRIMARYAPEM ALLFUNDEUR TradesIn NewOct2026 FXRate JPY AUD HKD
-KRW INR CNY TWD SGD NZD BRL ILS MXN DKK IDR VND MYR THB PHP ZAR -->
+<!-- name-whitelist: PRIMARYGLOBAL PRIMARYAPEM ALLFUNDEUR ALLFUNDOLD ALLSTOCKSOLD TradesIn NewOct2026
+FXRate IsUnlisted IsBDC JPY AUD HKD KRW INR CNY TWD SGD NZD BRL ILS MXN DKK IDR VND MYR THB PHP ZAR -->
 
 Portfolio123 went from US/Canada/Europe coverage to global coverage in autumn 2026: a new security
 master in October, then APAC & Emerging Markets data in production from 31 October to 2 November 2026.
 The 2026-06-09 Factor Reference extraction behind the other files predates all of this, and so does
 P123's own `Universe()` page, which still lists only the North American and European universes. This
-file records what changed and what was **verified on the live API on 2026-11-12** (read-only calls
-that end in an error, so no credits were spent). Where a statement comes from a P123 forum
+file records what changed and what was **verified on 2026-11-12**: on the live API (mostly calls
+that end in an error, so they cost nothing, plus a few member counts) and in the P123 web app, whose
+86 P123 Universes and their rules were read one by one. Where a statement comes from a P123 forum
 announcement instead, it says so.
 
 Read this file for any non-US work: universes outside the US, country filters, currencies, ticker
@@ -34,7 +35,7 @@ formats, and the data gaps that make some factors NA outside North America.
 | Date | Event (source: P123 forum announcements unless marked) |
 |---|---|
 | 2026-08-24 | Global beta opens on a separate site and database; no API on the beta. |
-| 2026-10-10/11 | **Security master release in production** (North America and Europe only). The primary issue of each company is now the vendor's (FactSet's) choice. About 2% of stocks moved to another primary universe (example: `SHOP:USA` replaced by `SHOP:CAN`); Canada (Primary) grew from about 1,650 to 2,350 stocks and United States (Primary) from about 6,200 to 6,650. Europe's foreign-primary universe was retired. Dividend functions with `#AnnDate` now fall back to `#ExDate`. Identical backtests return slightly different numbers from this date on; P123 says small differences will keep appearing. |
+| 2026-10-10/11 | **Security master release in production** (North America and Europe only). The primary issue of each company is now the vendor's (FactSet's) choice. About 2% of stocks moved to another primary universe (example: `SHOP:USA` replaced by `SHOP:CAN`); Canada (Primary) grew from about 1,650 to 2,350 stocks and United States (Primary) from about 6,200 to 6,650. `ALLFUND` and `ALLSTOCKS` were redefined (13,184 and 14,420 stocks on 2026-11-07); the old definitions stay available as `ALLFUNDOLD` (9,296) and `ALLSTOCKSOLD` (10,220), and P123's US P123 Universes (Prussell, cap tiers, exchanges) still use them (measured, not announced). Europe's foreign-primary universe was retired. Dividend functions with `#AnnDate` now fall back to `#ExDate`. Identical backtests return slightly different numbers from this date on; P123 says small differences will keep appearing. |
 | 2026-10-16 | `TradesIn()` made point-in-time. |
 | 2026-10-31 to 11-02 | **Global Phase 1 in production**: APAC & Emerging added. The Global universe holds over 43,000 current and over 159,000 historical stocks. API and AI Factor work for all regions. New benchmarks for APAC & EM and Global. |
 | to 2026-11-30 | All three regions are free for every paying membership (other plan limits, such as years of history and API credits, still apply). |
@@ -51,47 +52,120 @@ was not planned as of 2026-10-28.
 
 ## Universes
 
-**Short IDs and display names both work** as the `universe` parameter in API calls (verified
-2026-11-12). The display name must match exactly: `"Europe 600"`, `"Prussell 3000"` and
-`"Micro Cap"` resolve, but the labels `"S&P/TSX 60"` and `"Nasdaq 100 (from 2005)"` from P123's
-`Universe()` page do not (use `SPTSX60` and `NASDAQ100`). The new APAC, country and frontier
-universes have **no short ID that could be found**; address them by display name.
+P123 has two kinds of universe. **Preset** universes are the base sets (a region, a country, all
+listings). **P123 Universes** are rules on top of a preset, listed in the web app under
+Universes → P123 Universes (86 of them on 2026-11-12, all read for this file). Both are addressed
+the same way in the API.
 
-### Multi-region (verified 2026-11-12)
+**How to address a universe in the API (verified 2026-11-12):**
 
-| Short ID | Display name | Contents |
+- A **short ID** (`PRIMARYGLOBAL`, `ALLFUND`, `Prussell3000`) where one exists.
+- Otherwise the **exact display name** as the app shows it (`'Japan (Primary)'`). Matching ignores
+  case (`'China A-Shares'` finds `China A-shares`) but not spelling: P123 spells
+  `'Malasya (Primary)'`, and `'Malaysia (Primary)'` is not found.
+- **Not** the numeric ID from the app's URL (`/app/universe/summary/345796`): `'345796'` is not found.
+- A short ID and its display name return identical members (checked for `ALLFUND`, `ALLFUNDOLD`,
+  `ALLSTOCKS`, `ALLSTOCKSOLD`, `Prussell3000`, `MicroCap`).
+- 15 of the 86 P123 Universes do **not** resolve by name: the 13 `Sector ...` universes,
+  `P123 Invest` and `S&P 500 Sector ETFs`. Rebuild them from their rules (below) on the base universe.
+- ETF universes need `'type': 'ETF'` in the request.
+
+### Preset universes
+
+| Short ID | Display name | Notes (members on 2026-11-07 where counted) |
 |---|---|---|
-| `PRIMARYGLOBAL` | `Global (Primary)` | Primary issues worldwide |
-| `PRIMARYAPEM` | `APAC & Emerging (Primary)` | Primary issues in the APAC & Emerging region |
-| `PRIMARYNOAT` | `North Atlantic (Primary)` | North America + Europe |
-| `PRIMARYNOAM` | `North America (Primary)` | US + Canada |
-| `PRIMARYEUR` | `Europe (Primary)` | Europe |
-| `TRADENOAT`, `TRADENOAM`, `TRADEEUR`, `TRADEUSA` | `Easy to Trade North Atlantic` / `North America` / `Europe` / `US` | Liquidity-filtered |
-| - | `Developed APAC` | Predefined universe (new) |
-| - | `World Frontier`, `Frontier` | Predefined universes (new) |
-| - | `China A-Shares` | Companies whose issues trade in mainland China or Hong Kong |
+| `PRIMARYGLOBAL` | Global (Primary) | All regions, primary issues |
+| `PRIMARYAPEM` | APAC & Emerging (Primary) | Base of the APAC/EM P123 Universes |
+| `PRIMARYNOAT` | North Atlantic (Primary) | North America + Europe |
+| `PRIMARYNOAM` | North America (Primary) | US + Canada |
+| `PRIMARYEUR` | Europe (Primary) | Base of the European P123 Universes |
+| `PRIMARYUSA` | United States (Primary) | 6,646 stocks. |
+| `ALLFUND` | United States (Incl. Foreign Primary) | 13,184 stocks. **New definition since October 2026.** US listings including foreign primaries and ADRs |
+| `ALLFUNDOLD` | United States-OLD (Incl. Foreign Primary) | 9,296 stocks. The pre-October definition, kept. **Base of P123's US P123 Universes** (Prussell, cap tiers, exchanges, Easy to Trade US) |
+| `ALLSTOCKS` | United States (All Listed Stocks) | 14,420 stocks. New definition |
+| `ALLSTOCKSOLD` | United States-OLD (All Listed Stocks) | 10,220 stocks. Pre-October definition; base of ADR, MLP and OTC universes |
+| `PRIMARYCAN` | Canada (Primary) |  |
+| `ALLFUNDCAN` | Canada (Incl. Foreign Primary) | Base of TSX, TSXV, CanadaTrust |
+| `ALLSTOCKSCAN` | Canada (All Listed Stocks) |  |
+| `ALLFUNDCDRCAD` | Canada (Incl. Foreign Primary and CDRs) |  |
+| - | ETFs (United States) | ETF base; use `'type': 'ETF'` |
 
-### Country primaries (display name only, verified 2026-11-12)
+The ETF-based and index universes of the US remain: `SP500`, `SP400`, `SP600`, `SP1500`, `DJIA`,
+`NASDAQ100` (see [misc.md](misc.md#universe-ids)).
 
-`"<Country> (Primary)"` resolves for:
+**ALLFUND changed under you.** Since the October security master, `ALLFUND` holds about 3,900 more
+stocks than `ALLFUNDOLD`, which keeps the old definition (13,184 against 9,296), and P123's own US
+P123 Universes still sit on `ALLFUNDOLD`. A system on `ALLFUND` built before October is now testing a different universe; use
+`ALLFUNDOLD` to reproduce old work, and `PRIMARYUSA` for new research.
 
-- **APAC & Emerging:** Japan, Australia, Hong Kong, South Korea, Taiwan, Singapore, New Zealand,
-  Indonesia, Vietnam, Brazil, Israel.
-- **Europe:** United Kingdom, Germany, France, Switzerland, Sweden, Norway, Denmark, Finland,
-  Netherlands, Belgium, Italy, Spain, Portugal, Austria, Ireland.
-- **North America:** United States, Canada (also the short IDs `PRIMARYUSA`, `PRIMARYCAN`).
+### P123 Universes: countries
 
-**No `"<Country> (Primary)"` universe** answered for China, India, Malaysia, Thailand, Philippines,
-Mexico, South Africa, Turkey, Saudi Arabia, Poland, Greece or Chile. For these, start from
-`PRIMARYAPEM` or `PRIMARYGLOBAL` and filter with `Country()`, `ExchCountry()` or `TradesIn()`
-(for China, `China A-Shares` may also fit).
+Unless stated, each is `ExchCountry("<code>")` plus `MedianDailyTot(20) > 5000` (at least $5,000
+median daily dollar volume, in the system currency) on the base shown.
 
-### "Trades In" universes
+| Display name | Rule country | Base |
+|---|---|---|
+| Austria (Primary), Belgium (Primary), Denmark (Primary), Finland (Primary), France (Primary), Germany (Primary), Ireland (Primary), Italy (Primary), Netherlands (Primary), Norway (Primary), Portugal (Primary), Spain (Primary), Sweden (Primary), Switzerland (Primary), United Kingdom (Primary) | AUT, BEL, DNK, FIN, FRA, DEU, IRL, ITA, NLD, NOR, PRT, ESP, SWE, CHE, GBR | `PRIMARYEUR` |
+| Australia (Primary), Brazil (Primary), Hong Kong (Primary), Israel (Primary), Japan (Primary), New Zealand (Primary), Singapore (Primary), South Korea (Primary), Taiwan (Primary), Vietnam (Primary) | AUS, BRA, HKG, ISR, JPN, NZL, SGP, KOR, TWN, VNM | `PRIMARYAPEM` |
+| **Malasya (Primary)** (P123's spelling) | MYS | `PRIMARYAPEM` |
+| **Indonesia (Primary)** | **IND - that is India** | `PRIMARYAPEM` |
+| China A-shares | `TradesIn("CHN")` (any issue trading in mainland China) | `PRIMARYAPEM` |
 
-`Trades In Germany`, `Trades In Norway`, `Trades In United States` and `Trades In Canada` resolve.
-They are built on `TradesIn()`: companies that have an issue trading in that country, wherever
-their primary listing is (their exact rules were not read). Build others with `TradesIn()` on top
-of `PRIMARYGLOBAL`; P123 notes that this needs the global subscription.
+**P123 bug (2026-11-12): "Indonesia (Primary)" holds Indian stocks.** Its rule is
+`ExchCountry("IND")`, India's code; Indonesia is `IDN`. A screen on it returned 1,770 stocks, all
+with the `:IND` suffix. There is no Indonesia universe and no India universe under its own name: for
+India use `'Indonesia (Primary)'` knowingly or `PRIMARYAPEM` with `ExchCountry("IND")`; for Indonesia,
+`PRIMARYAPEM` with `ExchCountry("IDN")`. Re-check before relying on it, P123 may fix the rule.
+
+No country universe exists for China (other than China A-shares), India, Indonesia, Thailand,
+Philippines, Mexico, Chile, South Africa, Turkey, Saudi Arabia, Poland or Greece: use the regional
+universes below or a preset with `ExchCountry()`.
+
+### P123 Universes: regions and "Trades In"
+
+Same pattern: `ExchCountry(...)` or `TradesIn(...)` plus `MedianDailyTot(20) > 5000`.
+
+| Display name | Countries | Base |
+|---|---|---|
+| Developed APAC | AUS HKG JPN NZL SGP | `PRIMARYAPEM` |
+| Emerging APAC | CHN IDN IND KOR MYS PHL THA TWN | `PRIMARYAPEM` |
+| Emerging LATAM | BRA CHL COL MEX PER | `PRIMARYAPEM` |
+| World Frontier | ARG BGD BGR BHR BWA CIV EST GHA HRV ISL JAM JOR KAZ KEN LKA LTU MAR MLT MUS MWI NAM NGA OMN PAK PAN ROU SRB SVN TZA UGA VNM | `PRIMARYAPEM` |
+| Developed Europe + Israel | AUT BEL CHE DEU DNK ESP FIN FRA GBR IRL ISR ITA NLD NOR PRT SWE | `PRIMARYGLOBAL` |
+| Emerging EMEA | ARE CZE EGY GRC HUN KWT POL QAT SAU TUR ZAF | `PRIMARYGLOBAL` |
+| Trades In Canada / Germany / Norway / United States | `TradesIn("CAN")` / `("DEU")` / `("NOR")` / `("USA")`: companies with any issue trading there, wherever their primary listing is | `PRIMARYGLOBAL` |
+
+Note the overlaps: Korea and Taiwan count as Emerging APAC, Israel sits in both Israel (Primary) and
+Developed Europe + Israel, and Vietnam is in both Vietnam (Primary) and World Frontier.
+
+### P123 Universes: Europe and North America
+
+| Display name | Short ID | Rules | Base |
+|---|---|---|---|
+| Europe 600 | `EU600` | `Country(...)` with 17 European codes (domicile, not exchange); `FOrder("MktCap", #Previous) <= 600` | `PRIMARYEUR` |
+| Europe 200 Large / Mid / Small | `EU200L` / `EU200M` / `EU200S` | Same countries; market-cap order 1-200 / 201-400 / 401-600 | `PRIMARYEUR` |
+| Easy to Trade Europe | `TRADEEUR` | `Price > 0.5`; `MedianDailyTot(126) > 10000` | `PRIMARYEUR` |
+| Easy to Trade North America | `TRADENOAM` | `Price > 3`; `!IsMLP & !IsOTC & !IsUnlisted`; `MedianDailyTot(126) > 50000` | `PRIMARYNOAM` |
+| Easy to Trade North Atlantic | `TRADENOAT` | As North America for US/Canada listings, `Price > 0.5` and `MedianDailyTot(126) > 10000` elsewhere | `PRIMARYNOAT` |
+| Easy to Trade US | `TRADEUSA` | As North America | `ALLFUNDOLD` |
+| Prussell 1000 / 2000 / 3000 | `Prussell1000` / `2000` / `3000` | `!IsMLP`, `!IsADR`, no OTC (`!InSet(ExchangeCode, 13, 19)`), BDCs excluded from 2014-06-28, `Close(0) >= 1`, `Country("USA,CYM,BMU,BHS")`, `FOrder("MktCap", #Previous)` 1-1000 / 1001-3000 / 1-3000 | `ALLFUNDOLD` |
+| Prussell 1000 / 2000 / 3000 (OLD) | - | Same without the BDC rule (an older P123 definition, unrelated to the October change); 2,942 against 2,938 members for the 3000 | `ALLFUNDOLD` |
+| Large / Mid / Small / Micro / Nano Cap | `LargeCap` ... `NanoCap` | `!IsMLP`, `!IsADR`, `FRank("MktCap", #Previous)` above 91 / 77-91 / 53-77 / 29-53 / up to 29; reconstituted quarterly | `ALLFUNDOLD` |
+| NASDAQ Exchange / NY Stock Exchange / NYSE MKT (AMEX) / No OTC Exchange | `NASD` / `NYSE` / `NYSEMKT` / `NOOTC` | `InSet(ExchangeCode, 14, 15)` / `ExchangeCode = 11` / `= 12` / `!InSet(ExchangeCode, 13, 19)` | `ALLFUNDOLD` |
+| Over The Counter / American Depositary Receipt / Master Limited Partnership | `OTC` / `$ADR` / `MasterLP` | `InSet(ExchangeCode, 13, 19)` / `IsADR` / `IsMLP` | `ALLSTOCKSOLD` |
+| Toronto Stock Exchange / TSX Venture Exchange / CanadaTrust | `TSX` / `TSXV` / `CanadaTrust` | `ExchangeCode = 7` / `= 9` / `Ticker("*.UN* *.UT*")` | `ALLFUNDCAN` |
+| P123 Invest (not reachable by name) | - | `FRank("MktCap") > 80`, no OTC/ADR/MLP, `SalesGr%TTM` not NA, `AvgDailyTot(20)` and `AvgDailyTot(20, 20)` above $10M, $50M below a $5 price | `ALLFUNDOLD` |
+| 13 sector universes (not reachable by name) | - | `Sector = MATERIALS`, `CYCLICALS`, `ENERGY`, `FINANCIAL`, `HEALTHCARE`, `TECH`, `UTIL`, `INDUSTRIAL`, `BIZSVCE`, `CONSUMERSVCE`; `GICS(30)` (Consumer Non-Cyclical), `GICS(2030)` (Transportation), `GICS(50)` (Telecommunications) | `ALLFUNDOLD` |
+
+The short IDs in the second column were verified separately (2026-09-17 and 2026-11-12); for
+`Prussell3000` and `MicroCap` the member lists equal the named universe.
+
+### P123 Universes: ETFs (`'type': 'ETF'`)
+
+Conservative, Defensive Equity ETFs, Hard Assets and Special Models resolve by name; they filter
+`ETFs (United States)` with the ETF taxonomy sets (`ETFAssetClassSet`, `ETFMethodSet`,
+`ETFSectorSet`, ... see [taxonomy.md](taxonomy.md)). `S&P 500 Sector ETFs`
+(`Ticker("XLC,XLF,XLE,XLY,XLP,XLV,XLI,XLRE,XLK,XLU,XLB")`) does not resolve by name.
 
 ### Removed or never valid (verified 2026-11-12)
 
@@ -100,13 +174,10 @@ of `PRIMARYGLOBAL`; P123 notes that this needs the global subscription.
 | `ALLFUNDEUR` / `Europe (Incl. Foreign Primary)` | **Removed** with the October security master. P123 re-pointed saved systems to Europe (Primary). The `Universe()` page still lists it. | `PRIMARYEUR`; for global companies that also trade in Europe, `PRIMARYGLOBAL` with `TradesIn(...)` |
 | `CDR` | Not a universe ID (the `Universe()` page lists it). | `ALLFUNDCDRCAD` |
 | `AMEX` | Not a universe ID (the `Universe()` page lists it). | `NYSEMKT` |
+| `'Malaysia (Primary)'` | Not found: P123 spells it `Malasya`. | `'Malasya (Primary)'` |
 
-All other IDs listed in [api.md](api.md#regional-universe-ids-verified-live-2026-09-17) and
-[misc.md](misc.md#universe-ids) still resolved on 2026-11-12, including `ALLFUND`, `ALLFUNDCAN`,
-`ALLFUNDCDRCAD`, `CanadaTrust` and all US index and cap-tier universes.
-
-The lists above are what probing found, not the full universe picker. For any other universe, copy
-its name exactly from the universe picker in the P123 web app and probe it as below.
+For a universe not listed here (a user's own, a group's, or one P123 adds later), copy its name
+exactly from the app and probe it as below.
 
 ## Probing a universe ID for free
 
@@ -252,7 +323,12 @@ As of 2026-11-12, per P123's release notes and forum:
 | `'universe': 'ALLFUND'` for a global screen | `'universe': 'PRIMARYGLOBAL'` | `ALLFUND` is US-listed securities only |
 | `'universe': 'ALLFUNDEUR'` | `'universe': 'PRIMARYEUR'` | Removed in October 2026: `Universe <ALLFUNDEUR> not found` |
 | `'universe': 'PRIMARYJPN'`, `'JAPAN'` | `'universe': 'Japan (Primary)'` | APAC country universes have no short ID; use the exact display name |
-| `'universe': 'India (Primary)'` | `PRIMARYAPEM` with `Country("IND")` | No India country universe answered |
+| `'universe': 'Indonesia (Primary)'` for Indonesian stocks | `PRIMARYAPEM` with `ExchCountry("IDN")` | P123 bug: that universe's rule is `ExchCountry("IND")`, so it holds Indian stocks |
+| `'universe': 'India (Primary)'` | `PRIMARYAPEM` with `ExchCountry("IND")` (or `'Indonesia (Primary)'`, knowingly) | No India universe under its own name |
+| `'universe': 'Malaysia (Primary)'` | `'universe': 'Malasya (Primary)'` | P123's spelling; the correct spelling is not found |
+| `'universe': '345796'` (the number in the app URL) | `'universe': 'Japan (Primary)'` | Numeric universe IDs are not found |
+| Reproducing a pre-October `ALLFUND` system on `ALLFUND` | `ALLFUNDOLD` (or `ALLSTOCKSOLD`) | `ALLFUND` was redefined and grew from 9,296 to 13,184 stocks |
+| Assuming `Prussell3000`, `MicroCap`, `TRADEUSA` follow the new US definition | They are built on `ALLFUNDOLD` | P123's own US P123 Universes kept the old base |
 | `Country("JPN")` to find stocks that trade in Tokyo | `ExchCountry("JPN")` (this listing) or `TradesIn("JPN")` (any listing of the company) | `Country` is domicile |
 | `ExchangeCode = 1497` for Tokyo | `ExchangeCode = 1496` | 1497 was the beta code |
 | `'currency': 'DKK'` | a supported currency, e.g. `EUR` | 21 codes are accepted, DKK is not |
@@ -263,7 +339,10 @@ As of 2026-11-12, per P123's release notes and forum:
 ## Sources
 
 - Live API checks, 2026-11-12, `p123api` 3.1.0: universe IDs and names, currencies, `region` values
-  and function parsing, all through calls that ended in an error (no credits).
+  and function parsing through calls that ended in an error (no credits); member counts through 15
+  `screen_run` calls (`maxNumHoldings: 0`, 2 credits each).
+- P123 web app, 2026-11-12: Universes → P123 Universes (86 entries) with each universe's base and
+  rules, and the currency list of the universe editor (the same 21 codes the API accepts).
 - P123 Factor Reference pages `Universe`, `ExchangeCode` and `TradesIn`
   (portfolio123.com/doc), read 2026-11-12.
 - P123 community announcements: "Global data has been released!" (2026-11-02), "Global data
