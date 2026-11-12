@@ -1,19 +1,17 @@
 ---
 name: portfolio123
 description: >-
-  Comprehensive, extraction-verified reference for Portfolio123 (P123), the systematic equity
-  research platform: factor investing, stock screening, ranking systems, backtesting, and the
-  REST API with the p123api Python wrapper. Use this skill whenever the user mentions
-  Portfolio123, P123, p123api, P123 screens or screen rules, ranking system XML, simulated
-  strategies, buy/sell rules, or any P123 formula syntax such as Close(0), FRank, FHist, MktCap,
-  PEExclXorTTM, ROE%TTM, SetVar, or Eval. Also use it when the user wants to write or debug P123
-  formulas, build or fix ranking systems, construct screens or universes, replicate academic
-  factor strategies (value, momentum, quality, low volatility) on P123, or pull P123 data
-  programmatically (screen_run, screen_backtest, rank_ranks, data_universe, AI Factor
-  predictions), including non-US work: Canada, Europe, APAC, Emerging and Global universes,
-  country filters and currencies. Covers all 4,463 factors and 465 functions of the official
-  Factor Reference in 13 category files, plus the full REST API (39 operations), the global data
-  release of autumn 2026, and 9 runnable example scripts.
+  Extraction-verified reference for Portfolio123 (P123), the systematic equity research
+  platform: factor investing, screening, ranking systems, backtesting, and the REST API with
+  the p123api Python wrapper. Use it whenever the user mentions Portfolio123, P123, p123api,
+  screens or screen rules, ranking system XML, simulated strategies, buy/sell rules, or P123
+  formula syntax such as Close(0), FRank, FHist, MktCap, PEExclXorTTM, ROE%TTM, SetVar or Eval.
+  Also use it to write or debug P123 formulas, build ranking systems, construct screens or
+  universes, replicate academic factor strategies (value, momentum, quality, low volatility),
+  or pull P123 data via the API (screen_run, screen_backtest, rank_ranks, data_universe, AI
+  Factor), including non-US work: Canada, Europe, APAC, Emerging and Global universes, country
+  filters and currencies. Covers all 4,463 factors and 465 functions of the Factor Reference,
+  the full REST API (39 operations), P123's 2026 global data release and 9 example scripts.
 license: MIT
 ---
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [4.2.1-tae.2] - 2026-11-12 (TheAlphaEngineer fork)
+
+### Fixed
+- `SKILL.md` description shortened from 1,141 to 998 characters. claude.ai refuses a skill whose
+  `description` exceeds 1,024 characters, so 4.2.1-tae.1 could not be uploaded. Upstream's
+  description is 992 characters, so any trigger words added here must be offset by cuts.
+
 ## [4.2.1-tae.1] - 2026-11-12 (TheAlphaEngineer fork)
 
 Fork release on top of upstream 4.2.1. Upstream had already fixed what this fork patched before
