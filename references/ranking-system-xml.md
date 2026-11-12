@@ -1,63 +1,90 @@
-# P123 Ranking System XML Reference
+# Ranking System XML - Portfolio123 Reference
 
-## Overview
+> **ALWAYS read this file before generating ranking-system XML.** P123 ranking systems use a
+> strict tag hierarchy; the schema and the factor names below were validated against working
+> ranking systems and re-verified against the official factor dictionary. Getting a tag or a
+> factor name wrong produces an import error or a silently broken node.
 
-P123 ranking systems are defined in XML using a strict tag hierarchy. This reference
-documents the correct schema, validated against working ranking systems.
+This file is standalone: everything needed to write a valid ranking system is here. Factor names
+also appear in the category references ([Financials](financials.md),
+[Ratios & Statistics](ratios-statistics.md), [Technical](technical.md),
+[Estimates](estimates.md)); when in doubt, confirm a name there.
 
-**Critical rules learned from trial and error:**
-- `<RankingSystem>` is the root node — nothing else can be root
-- No `<RankPerformance>` wrapper — composites sit directly inside `<RankingSystem>`
-- `%` characters in factor names work fine inside `<Factor>` and `<Formula>` tags
-- Use `<Composite>` for grouping nodes, never `<SNode>`
-- Use `<StockFactor>/<Factor>` for pre-built P123 factors
-- Use `<StockFormula>/<Formula>` for custom formula expressions
-- Use `<IndFactor>/<Factor>` for industry-level factors
+## Contents
+
+- [Critical rules](#critical-rules)
+- [Tag Reference](#tag-reference)
+- [Weights](#weights)
+- [Scope: Industry vs. Universe](#scope-industry-vs-universe)
+- [RankType Direction Quick Reference](#ranktype-direction-quick-reference)
+- [Verified Factor Names](#verified-factor-names)
+- [Common Formula Expressions](#common-formula-expressions)
+- [Worked Example - Penman & Pope](#worked-example--penman--pope)
+- [Known Formula Errors to Avoid](#known-formula-errors-to-avoid)
+- [See Also](#see-also)
+
+---
+
+## Critical rules
+
+- `<RankingSystem>` is the root node - nothing else can be the root.
+- There is no `<RankPerformance>` wrapper; composites sit directly inside `<RankingSystem>`.
+- `%` characters in factor names are fine inside `<Factor>` and `<Formula>` tags - do not escape
+  them.
+- Use `<Composite>` for grouping nodes, never `<SNode>`.
+- Use `<StockFactor>` / `<Factor>` for pre-built P123 factors.
+- Use `<StockFormula>` / `<Formula>` for custom formula expressions.
+- Use `<IndFactor>` / `<Factor>` for industry-level factors.
+- `Weight="0"` and an omitted `Weight` are legal: `0` means "equal weight", not "node disabled".
+  When every child of a node carries zero (or no) weight, that node's weight is split evenly among
+  them. Never flag this as an error or rewrite it - see [Weights](#weights).
+- Test for missing data with `expression = NA` inside a formula - `IsNA` is a two-argument
+  replacement function, not a single-argument boolean (see
+  [Known Formula Errors](#known-formula-errors-to-avoid)).
 
 ---
 
 ## Tag Reference
 
+<!-- name-whitelist: Name RankType Scope Description Weight -->
+
 ### `<RankingSystem>`
-Root element. Required attribute: `RankType="Higher"` (always Higher at root level).
+
+Root element. Required attribute `RankType="Higher"` (always Higher at the root).
 
 ```xml
 <RankingSystem RankType="Higher">
-  ...
+  <!-- composites and leaf nodes -->
 </RankingSystem>
 ```
 
----
-
 ### `<Composite>`
-Groups child nodes into a weighted composite. Can nest composites inside composites.
 
-**Attributes:**
+Groups child nodes into a weighted composite; composites may nest.
+
 | Attribute | Values | Notes |
-|-----------|--------|-------|
-| `Name` | any string | Display name in P123 UI |
-| `Weight` | number | Relative weight within parent. Does not need to sum to 100 — P123 normalizes. |
-| `RankType` | `"Higher"` / `"Lower"` | Higher = higher values rank better. Lower = lower values rank better. |
+|---|---|---|
+| `Name` | any string | Display name in the P123 UI. |
+| `Weight` | number | Relative weight within the parent; need not sum to 100 (P123 normalizes). Optional; `0` or omitted is legal and does not disable the node - see [Weights](#weights) for the split rules. |
+| `RankType` | `Higher` / `Lower` | Higher = higher values rank better; Lower = lower values rank better. |
 
 ```xml
 <Composite Name="Valuation" Weight="30" RankType="Higher">
-  ...child nodes...
+  <!-- child nodes -->
 </Composite>
 ```
 
----
-
 ### `<StockFactor>`
-Leaf node using a **pre-built P123 factor** (no formula expression needed).
 
-**Attributes:**
+Leaf node using a pre-built P123 factor (no formula expression).
+
 | Attribute | Values | Notes |
-|-----------|--------|-------|
-| `Weight` | number | Relative weight within parent composite |
-| `RankType` | `"Higher"` / `"Lower"` | Direction for this factor |
-| `Scope` | `"Universe"` / `"Industry"` / `"Sector"` / `"SubIndustry"` | Cross-sectional ranking scope |
+|---|---|---|
+| `Weight` | number | Relative weight within the parent composite. Optional; `0` or omitted is legal and does not disable the node - see [Weights](#weights) for the split rules. |
+| `RankType` | `Higher` / `Lower` | Direction for this factor. |
+| `Scope` | `Universe` / `Industry` / `Sector` / `SubIndustry` | Cross-sectional ranking scope. |
 
-**Child tag:** `<Factor>` containing the P123 factor name.
+Child tag `<Factor>` holds the factor name.
 
 ```xml
 <StockFactor Weight="50" RankType="Lower" Scope="Industry">
@@ -65,21 +92,19 @@ Leaf node using a **pre-built P123 factor** (no formula expression needed).
 </StockFactor>
 ```
 
----
-
 ### `<StockFormula>`
-Leaf node using a **custom formula expression**.
 
-**Attributes:**
+Leaf node using a custom formula expression.
+
 | Attribute | Values | Notes |
-|-----------|--------|-------|
-| `Weight` | number | Relative weight within parent composite |
-| `RankType` | `"Higher"` / `"Lower"` | Direction for this formula |
-| `Name` | any string | Display name in P123 UI |
-| `Description` | any string | Optional description, can be `""` |
-| `Scope` | `"Universe"` / `"Industry"` / `"Sector"` / `"SubIndustry"` | Cross-sectional ranking scope |
+|---|---|---|
+| `Weight` | number | Relative weight within the parent composite. Optional; `0` or omitted is legal and does not disable the node - see [Weights](#weights) for the split rules. |
+| `RankType` | `Higher` / `Lower` | Direction for this formula. |
+| `Name` | any string | Display name in the P123 UI. |
+| `Description` | any string | Optional; may be `""`. |
+| `Scope` | `Universe` / `Industry` / `Sector` / `SubIndustry` | Cross-sectional ranking scope. |
 
-**Child tag:** `<Formula>` containing the P123 formula expression.
+Child tag `<Formula>` holds the expression.
 
 ```xml
 <StockFormula Weight="40" RankType="Higher" Name="EBITDA to EV" Description="" Scope="Universe">
@@ -87,10 +112,9 @@ Leaf node using a **custom formula expression**.
 </StockFormula>
 ```
 
----
-
 ### `<IndFactor>`
-Leaf node for **industry-level** factors (industry momentum, etc.).
+
+Leaf node for industry-level factors (industry momentum, etc.).
 
 ```xml
 <IndFactor Weight="60" RankType="Higher">
@@ -100,174 +124,229 @@ Leaf node for **industry-level** factors (industry momentum, etc.).
 
 ---
 
-## Scope: When to Use Industry vs Universe
+## Weights
+
+**`Weight="0"` and an omitted `Weight` are legal - never "correct" them.** P123 documents the
+ranking-node weight as `[0] - 100 where 0 indicates equal weight`, with `0` as the documented
+default when no weight is supplied. Zero does not disable a node.
+
+| Sibling weights | Effective split |
+|---|---|
+| All positive | Each child's weight as a share of the siblings' total. |
+| All `0`, or all omitted | Even - each child takes `1/n` of the parent's weight. |
+| Mixed `0` and positive | Legal input. The resulting split is undocumented - do not assert one, and do not flag or rewrite it. |
+
+```xml
+<!-- No child carries a positive weight, so the composite's 30 points split four ways. -->
+<Composite Name="Quality" Weight="30" RankType="Higher">
+  <StockFactor Weight="0" RankType="Higher" Scope="Industry">
+    <Factor>ROE%TTM</Factor>
+  </StockFactor>
+  <StockFactor Weight="0" RankType="Higher" Scope="Industry">
+    <Factor>OpMgn%TTM</Factor>
+  </StockFactor>
+  <StockFactor Weight="0" RankType="Higher" Scope="Industry">
+    <Factor>GMgn%TTM</Factor>
+  </StockFactor>
+  <StockFactor Weight="0" RankType="Lower" Scope="Industry">
+    <Factor>DbtTot2CapQ</Factor>
+  </StockFactor>
+</Composite>
+```
+
+Each leaf above gets 25% of the Quality composite, i.e. 7.5 of its 30 weight points. Deleting the
+four `Weight="0"` attributes produces the same system, and so does rewriting them as `Weight="25"`
+- that rewrite is cosmetic, so make it only when asked. When writing new XML, set an explicit
+`Weight` on every node; when reading a user's XML, treat a missing `Weight` as `0`.
+
+---
+
+## Scope: Industry vs. Universe
 
 | Use `Scope="Industry"` | Use `Scope="Universe"` |
-|------------------------|------------------------|
-| Margins (OpMgn, GMgn) | Absolute valuation (P/E, EV/EBITDA) |
-| Turnover (AstTurn) | Momentum / price ratios |
-| Return on capital (ROI, ROE) | Accruals |
-| Debt ratios (DbtTot2CapQ) | Cash flow quality |
-| PE ratio (to compare within sector) | Forward estimates |
+|---|---|
+| Margins (`OpMgn%TTM`, `GMgn%TTM`) | Absolute valuation (P/E, EV/EBITDA) |
+| Asset turnover (`AstTurnTTM`) | Momentum / price ratios |
+| Return on capital (`ROI%TTM`, `ROE%TTM`) | Accruals |
+| Debt ratios (`DbtTot2CapQ`) | Cash flow quality |
+| P/E (to compare within sector) | Forward estimates |
 
-**Reasoning:** Margins and returns vary structurally by industry. Ranking a retailer's
-OpMgn against a software company's is meaningless. Valuation multiples and price
-momentum are more meaningful cross-sectionally.
+Margins and returns vary structurally by industry, so ranking them within the industry is more
+meaningful. Valuation multiples and price momentum are more comparable across the whole universe.
 
 ---
 
 ## RankType Direction Quick Reference
 
-| Factor | RankType | Reasoning |
-|--------|----------|-----------|
-| PE ratio | `Lower` | Cheaper is better |
-| EV/EBITDA | `Lower` | Cheaper is better |
-| P/Book | `Lower` | Cheaper is better |
-| Earnings Yield (1/PE) | `Higher` | Higher yield is better |
-| EBITDA/EV | `Higher` | Higher yield is better |
-| ROI, ROE | `Higher` | More profitable is better |
-| Operating Margin | `Higher` | Higher margin is better |
-| Asset Turnover | `Higher` | More efficient is better |
-| Accruals | `Lower` | Lower accruals = cleaner earnings |
-| Asset Growth | `Lower` | Less aggressive expansion is better |
-| Debt/Capital | `Lower` | Less leverage is better |
-| Interest Coverage | `Higher` | More coverage is better |
-| Beta | `Lower` | Lower risk is better |
-| Price Volatility | `Lower` | Lower volatility is better |
-| Momentum (price change) | `Higher` | Stronger momentum is better |
-| EPS Surprise | `Higher` | Positive surprise is better |
-| Estimate Revision | `Higher` | Upward revision is better |
+Each row was spot-checked against the corresponding factor's detail-page or short description in
+the category slices.
+
+| Factor / metric | RankType | Reasoning |
+|---|---|---|
+| P/E ratio | `Lower` | Cheaper is better. |
+| EV/EBITDA | `Lower` | Cheaper is better. |
+| Price/Book (`Pr2BookQ`) | `Lower` | Cheaper is better. |
+| Earnings yield (`1/PEExclXorTTM`) | `Higher` | Higher yield is better. |
+| EBITDA/EV (`OpIncBDeprTTM/EV`) | `Higher` | Higher yield is better. |
+| ROI / ROE (`ROI%TTM`, `ROE%TTM`) | `Higher` | More profitable is better. |
+| Operating margin (`OpMgn%TTM`) | `Higher` | Higher margin is better. |
+| Asset turnover (`AstTurnTTM`) | `Higher` | More efficient is better. |
+| Accruals | `Lower` | Lower accruals = cleaner earnings. |
+| Asset growth | `Lower` | Less aggressive expansion is better. |
+| Debt/Capital (`DbtTot2CapQ`) | `Lower` | Less leverage is better. |
+| Interest coverage (`IntCovTTM`) | `Higher` | More coverage is better. |
+| Price volatility (`PctDev`) | `Lower` | Lower volatility is better. |
+| Momentum (price change) | `Higher` | Stronger momentum is better. |
+| EPS surprise (`Surprise%Q1`) | `Higher` | Positive surprise is better. |
 
 ---
 
-## Verified Working Factor Names
+## Verified Factor Names
 
-These have been confirmed to work in P123 XML. Many pre-built factors use `%` in
-their names — this is fine inside `<Factor>` tags.
+All names below are confirmed present in the official dictionary. `%` in a name is part of the
+name and is used as-is inside `<Factor>` and `<Formula>` tags.
 
-### Valuation
-| XML Factor Name | Description |
-|----------------|-------------|
-| `PEExclXorTTM` | P/E excl. extraordinary items TTM |
-| `Pr2BookQ` | Price to book (quarterly) |
-| `Pr2TanBkQ` | Price to tangible book |
-| `Pr2SalesTTM` | Price to sales TTM |
-| `EV2SalesTTM` | EV to sales TTM |
-| `EV2EBITDATTM` | EV/EBITDA TTM (pre-built) — use `OpIncBDeprTTM/EV` in formulas for safety |
+### Valuation (pre-built factors)
 
-### Valuation — Formula expressions (use in `<StockFormula>`)
+| Factor | Description |
+|---|---|
+| `PEExclXorTTM` | P/E excluding extraordinary items, TTM. |
+| `Pr2BookQ` | Price to book (quarterly). |
+| `Pr2TanBkQ` | Price to tangible book. |
+| `Pr2SalesTTM` | Price to sales, TTM. |
+| `EV2SalesTTM` | EV to sales, TTM. |
+| `EV2EBITDATTM` | EV/EBITDA, TTM (pre-built); or use `OpIncBDeprTTM/EV` in a formula node. |
+| `EarnYield` | Earnings yield, TTM (pre-built, `RankType="Higher"`), `100 * EPSExclXorTTM / Price`. Losses give a negative yield instead of the NA that `1/PEExclXorTTM` can produce. |
+
+### Valuation (formula expressions for `<StockFormula>`)
+
 | Formula | Description |
-|---------|-------------|
-| `1/PEExclXorTTM` | Earnings yield TTM |
-| `CurFYEPSMean/Price` | Forward earnings yield |
-| `OpIncBDeprTTM/EV` | EBITDA/EV (yields-based) |
-| `GrossProfitTTM/EV` | Gross profit to EV |
-| `NetFCFPSTTM/Price` | FCF yield |
-| `(OperCashFlTTM-CapExTTM+0.8*IntExpTTM)/EV` | Unlevered FCF to EV |
-| `(Price*SharesFDQ)/CurFYSalesMean` | Forward P/S |
+|---|---|
+| `1/PEExclXorTTM` | Earnings yield, TTM. |
+| `CurFYEPSMean/Price` | Forward earnings yield. |
+| `OpIncBDeprTTM/EV` | EBITDA/EV (yield form). |
+| `GrossProfitTTM/EV` | Gross profit to EV. |
+| `NetFCFPSTTM/Price` | Free cash flow yield. |
+| `(OperCashFlTTM-CapExTTM+0.8*IntExpTTM)/EV` | Unlevered FCF to EV. |
+| `(Price*SharesFDQ)/CurFYSalesMean` | Forward price/sales. |
 
 ### Profitability
-| XML Factor Name | Description |
-|----------------|-------------|
-| `ROI%TTM` | Return on investment TTM |
-| `ROI%5YAvg` | ROI 5-year average |
-| `ROE%TTM` | Return on equity TTM |
-| `ROE%5YAvg` | ROE 5-year average |
-| `OpMgn%TTM` | Operating margin TTM |
-| `OpMgn%5YAvg` | Operating margin 5-year avg |
-| `GMgn%TTM` | **Gross margin TTM** (NOT `GrMgn%TTM`) |
-| `GMgn%5YAvg` | Gross margin 5-year avg |
-| `NPMgn%TTM` | Net profit margin TTM (NOT `NetMgn%TTM`) |
-| `AstTurnTTM` | Asset turnover TTM |
-| `AstTurn5YAvg` | Asset turnover 5-year avg |
 
-### Quality / Accruals — Formula expressions
+| Factor | Description |
+|---|---|
+| `ROI%TTM` | Return on investment, TTM. |
+| `ROI%5YAvg` | ROI, 5-year average. |
+| `ROE%TTM` | Return on equity, TTM. |
+| `ROE%5YAvg` | ROE, 5-year average. |
+| `OpMgn%TTM` | Operating margin, TTM. |
+| `OpMgn%5YAvg` | Operating margin, 5-year average. |
+| `GMgn%TTM` | Gross margin, TTM. |
+| `GMgn%5YAvg` | Gross margin, 5-year average. |
+| `NPMgn%TTM` | Net profit margin, TTM. |
+| `AstTurnTTM` | Asset turnover, TTM. |
+| `AstTurn5YAvg` | Asset turnover, 5-year average. |
+
+### Quality / Accruals (formula expressions)
+
 | Formula | Description |
-|---------|-------------|
-| `AccrualsTTM/AstTot(0,TTM)` | Accruals to total assets |
-| `Eval(IsNA(NetIncBXor(0,TTM)) OR NetIncBXor(0,TTM)=0, 0, OperCashFlTTM/Abs(NetIncBXor(0,TTM)))` | Cash flow quality |
+|---|---|
+| `(NetIncBXorTTM-OperCashFlTTM)/AstTotTTM` | Accruals to total assets. No factor is *named* for accruals, but `MScoreTATA` is the same numerator over `AstTotQ` - see [factor-replication.md](factor-replication.md#earnings-quality-and-distress). |
+| `Eval(NetIncBXor(0,TTM) = NA OR NetIncBXor(0,TTM)=0, 0, OperCashFlTTM/Abs(NetIncBXor(0,TTM)))` | Cash flow quality. |
 
 ### Leverage / Solvency
-| XML Factor Name | Description |
-|----------------|-------------|
-| `IntCovTTM` | Interest coverage TTM |
-| `IntCov5YAvg` | Interest coverage 5-year avg |
-| `DbtTotQ` | **Total debt latest quarter** (NOT `TotDebtQ`) |
-| `DbtTotTTM` | Total debt TTM (NOT `TotDebtTTM`) |
-| `DbtTot2CapQ` | Total debt to capital (quarterly) |
-| `DbtTot2EqQ` | Total debt to equity (NOT `DebtToEqQ`) |
-| `AltmanZOrig` | Altman Z-score public manufacturing (NOT `AltmanZ`) — cutoff > 1.81 |
-| `AltmanZPriv` | Altman Z-score private firms |
-| `AltmanZNonManu` | Altman Z-score non-manufacturing firms |
+
+| Factor | Description |
+|---|---|
+| `IntCovTTM` | Interest coverage, TTM. |
+| `IntCov5YAvg` | Interest coverage, 5-year average. |
+| `DbtTotQ` | Total debt, latest quarter. |
+| `DbtTotTTM` | Total debt, TTM. |
+| `DbtTot2CapQ` | Total debt to capital (quarterly). |
+| `DbtTot2EqQ` | Total debt to equity. |
+| `AltmanZOrig` | Altman Z-score, public manufacturing (cutoff > 1.81). |
+| `AltmanZPriv` | Altman Z-score, private firms. |
+| `AltmanZNonManu` | Altman Z-score, non-manufacturing firms. |
 
 ### Growth
-| XML Factor Name | Description |
-|----------------|-------------|
-| `EPSExclXorGr%PYQ` | EPS growth vs prior year quarter |
-| `EPSExclXorGr%TTM` | EPS growth TTM |
-| `EPSExclXorGr%5Y` | EPS growth 5-year |
-| `SalesGr%PYQ` | Sales growth vs prior year quarter |
-| `SalesGr%TTM` | Sales growth TTM |
-| `SalesGr%5Y` | Sales growth 5-year |
-| `OpIncGr%PYQ` | Operating income growth vs PYQ |
-| `OpIncGr%TTM` | Operating income growth TTM |
-| `OpIncGr%5Y` | Operating income growth 5-year |
 
-### Momentum — Formula expressions
+| Factor | Description |
+|---|---|
+| `EPSExclXorGr%PYQ` | EPS growth vs. prior-year quarter. |
+| `EPSExclXorGr%TTM` | EPS growth, TTM. |
+| `EPSExclXorGr%5Y` | EPS growth, 5-year. |
+| `SalesGr%PYQ` | Sales growth vs. prior-year quarter. |
+| `SalesGr%TTM` | Sales growth, TTM. |
+| `SalesGr%5Y` | Sales growth, 5-year. |
+| `OpIncGr%PYQ` | Operating income growth vs. prior-year quarter. |
+| `OpIncGr%TTM` | Operating income growth, TTM. |
+| `OpIncGr%5Y` | Operating income growth, 5-year. |
+
+### Momentum (formula expressions)
+
 | Formula | Description |
-|---------|-------------|
-| `Close(0)/Close(120)` | 6-month price return |
-| `Close(0)/Close(160)` | 8-month price return |
-| `Close(0)/Close(252)` | 12-month price return |
-| `UpDownRatio(120,0)` | Up/down volume ratio 120 days |
-| `PctDev(252,1)` | Price volatility 12 months |
+|---|---|
+| `Close(0)/Close(120)` | 6-month price return. |
+| `Close(0)/Close(160)` | 8-month price return. |
+| `Close(0)/Close(252)` | 12-month price return. |
+| `UpDownRatio(120,0)` | Up/down volume ratio, 120 days. |
+| `PctDev(252,1)` | Price volatility, 12 months. |
 
 ### Sentiment / Estimates
-| XML Factor Name | Description |
-|----------------|-------------|
-| `Surprise%Q1` | EPS surprise most recent quarter |
-| `Surprise%Q2` | EPS surprise 2 quarters ago |
-| `AvgRec` | Average analyst recommendation |
 
-### Sentiment — Formula expressions
+| Factor | Description |
+|---|---|
+| `Surprise%Q1` | EPS surprise, most recent quarter. |
+| `Surprise%Q2` | EPS surprise, two quarters ago. |
+| `AvgRec` | Average analyst recommendation. |
+
+### Sentiment (formula expressions)
+
 | Formula | Description |
-|---------|-------------|
-| `%(CurFYEPSMean, CurFYEPS4WkAgo)` | EPS estimate revision current year |
-| `%(CurQEPSMean, CurQEPS4WkAgo)` | EPS estimate revision current quarter |
-| `CurQEPSStdDev/Abs(CurQEPSMean)` | EPS estimate variability |
-| `AvgRec/AvgRec4WkAgo` | Change in analyst recommendation |
+|---|---|
+| `%(CurFYEPSMean, CurFYEPS4WkAgo)` | EPS estimate revision, current year. |
+| `%(CurQEPSMean, CurQEPS4WkAgo)` | EPS estimate revision, current quarter. |
+| `CurQEPSStdDev/Abs(CurQEPSMean)` | EPS estimate variability. |
+| `AvgRec/AvgRec4WkAgo` | Change in analyst recommendation. |
 
-### Industry Momentum — use `<IndFactor>` tag
-| XML Factor Name | Description |
-|----------------|-------------|
-| `Pr26W%ChgInd` | Industry 26-week price change |
-| `Pr52W%ChgInd` | Industry 52-week price change |
+### Industry Momentum (use `<IndFactor>`)
 
----
-
-## Common Formula Expressions (cash flow items)
-
-Note: P123 cash flow pre-built factor names drop parentheses:
-
-| XML Name | Description |
-|----------|-------------|
-| `OperCashFlTTM` | Operating cash flow TTM (NOT `OpCashFl(0,TTM)`) |
-| `CapExTTM` | Capital expenditures TTM (NOT `CapEx(0,TTM)`) |
-| `IntExpTTM` | Interest expense TTM |
-| `GrossProfitTTM` | Gross profit TTM |
-| `OpIncBDeprTTM` | Operating income before depreciation (EBITDA) TTM |
-| `NetFCFPSTTM` | Net free cash flow per share TTM |
-| `AccrualsTTM` | Accruals TTM |
-| `SharesFDQ` | Fully diluted shares latest quarter (NOT `ShOutDilQ`) |
-| `SharesFDTTM` | Fully diluted shares TTM (NOT `ShOutDilTTM`) |
-| `Shares(0,QTR)` | Common shares outstanding — function form (NOT `ShOut()`) |
-| `SharesFD(0,QTR)` | Fully diluted shares — function form (NOT `ShOutDil()`) |
-| `EV` | Enterprise value |
-| `Price` | Current price |
+| Factor | Description |
+|---|---|
+| `Pr26W%ChgInd` | Industry 26-week price change. |
+| `Pr52W%ChgInd` | Industry 52-week price change. |
 
 ---
 
-## Full Working Example — Penman & Pope Ranking System
+## Common Formula Expressions
+
+P123 cash-flow pre-built factor names drop the function parentheses; the function forms also
+exist and take `(offset, type)` arguments.
+
+| Name | Description |
+|---|---|
+| `OperCashFlTTM` | Operating cash flow, TTM (function form `OperCashFl(0,TTM)`). |
+| `CapExTTM` | Capital expenditures, TTM (function form `CapEx(0,TTM)`). |
+| `IntExpTTM` | Interest expense, TTM. |
+| `GrossProfitTTM` | Gross profit, TTM. |
+| `OpIncBDeprTTM` | Operating income before depreciation (EBITDA), TTM. |
+| `NetFCFPSTTM` | Net free cash flow per share, TTM. |
+| `SharesFDQ` | Fully diluted shares, latest quarter. |
+| `SharesFDTTM` | Fully diluted shares, TTM. |
+| `Shares(0,QTR)` | Common shares outstanding (function form). |
+| `SharesFD(0,QTR)` | Fully diluted shares (function form). |
+| `NetIncBXorTTM` | Net income before extraordinary items, TTM (function form `NetIncBXor(0,TTM)`). |
+| `AstTotTTM` | Total assets, TTM (function form `AstTot(0,TTM)`). |
+| `EV` | Enterprise value. |
+| `Price` | Current price. |
+
+---
+
+## Worked Example - Penman & Pope
+
+A five-factor ranking system. Note the cash-flow-quality and asset-growth formulas use
+`expression = NA` (not single-argument `IsNA`), and accruals are computed from a formula because no
+factor is named for accruals - the one pre-built equivalent, `MScoreTATA`, divides the same
+numerator by `AstTotQ` rather than the four-quarter average used here.
 
 ```xml
 <RankingSystem RankType="Higher">
@@ -323,24 +402,24 @@ Note: P123 cash flow pre-built factor names drop parentheses:
 	<Composite Name="Earnings Quality" Weight="20" RankType="Higher">
 		<Composite Name="Accruals" Weight="50" RankType="Higher">
 			<StockFormula Weight="100" RankType="Lower" Name="Accruals to Assets" Description="" Scope="Universe">
-				<Formula>AccrualsTTM/AstTot(0,TTM)</Formula>
+				<Formula>(NetIncBXorTTM-OperCashFlTTM)/AstTotTTM</Formula>
 			</StockFormula>
 		</Composite>
 		<Composite Name="Cash Flow Quality" Weight="50" RankType="Higher">
 			<StockFormula Weight="100" RankType="Higher" Name="OpCF to Net Income" Description="" Scope="Universe">
-				<Formula>Eval(IsNA(NetIncBXor(0,TTM)) OR NetIncBXor(0,TTM)=0, 0, OperCashFlTTM/Abs(NetIncBXor(0,TTM)))</Formula>
+				<Formula>Eval(NetIncBXor(0,TTM) = NA OR NetIncBXor(0,TTM)=0, 0, OperCashFlTTM/Abs(NetIncBXor(0,TTM)))</Formula>
 			</StockFormula>
 		</Composite>
 	</Composite>
 	<Composite Name="Investment Risk" Weight="10" RankType="Higher">
 		<Composite Name="Asset Growth" Weight="60" RankType="Higher">
 			<StockFormula Weight="100" RankType="Lower" Name="Total Asset Growth" Description="" Scope="Universe">
-				<Formula>Eval(IsNA(AstTot(1,TTM)) OR AstTot(1,TTM)=0, 0, AstTot(0,TTM)/AstTot(1,TTM)-1)</Formula>
+				<Formula>Eval(AstTot(1,TTM) = NA OR AstTot(1,TTM)=0, 0, AstTot(0,TTM)/AstTot(1,TTM)-1)</Formula>
 			</StockFormula>
 		</Composite>
 		<Composite Name="CapEx Intensity" Weight="40" RankType="Higher">
 			<StockFormula Weight="100" RankType="Lower" Name="CapEx to Sales" Description="" Scope="Universe">
-				<Formula>Eval(IsNA(Sales(0,TTM)) OR Sales(0,TTM)=0, 0, CapExTTM/Sales(0,TTM))</Formula>
+				<Formula>Eval(Sales(0,TTM) = NA OR Sales(0,TTM)=0, 0, CapExTTM/Sales(0,TTM))</Formula>
 			</StockFormula>
 		</Composite>
 	</Composite>
@@ -366,28 +445,38 @@ Note: P123 cash flow pre-built factor names drop parentheses:
 
 ## Known Formula Errors to Avoid
 
-| Wrong | Correct | Note |
-|-------|---------|------|
-| `ROIC%TTM` | `ROI%TTM` | P123 uses ROI not ROIC as pre-built |
-| `ROIC(0,TTM)` | `ROI%TTM` | No function form for ROIC |
-| `Accruals%AstTTM` | `AccrualsTTM/AstTot(0,TTM)` | No pre-built accruals ratio |
-| `OpCashFl(0,TTM)` | `OperCashFl(0,TTM)` in formulas, `OperCashFlTTM` as pre-built factor in screens | `OpCashFl` is invalid in all contexts |
-| `CapEx(0,TTM)` | `CapExTTM` | Pre-built name differs from function |
-| `EVToEBITDATTM` | `EV2EBITDATTM` | Correct pre-built name; or use `OpIncBDeprTTM/EV` in formula nodes |
-| `IntCov%TTM` | `IntCovTTM` | No % in this pre-built name |
-| `IntCov(0,TTM)` | `IntCovTTM` | Use pre-built, not function form |
-| `EarnYield%TTM` | `1/PEExclXorTTM` | No pre-built earnings yield factor |
-| `AstTurn(0,TTM)` | `AstTurnTTM` | Pre-built name differs from function |
-| `<SNode>` | `<Composite>` | Wrong tag — causes root node error |
-| `<RankPerformance>` | *(omit entirely)* | Not used in this XML schema |
-| `&#37;` | `%` | % does not need escaping in Formula tags |
-| `AltmanZ` | `AltmanZOrig` | Invalid — use `AltmanZOrig` (public mfg), `AltmanZPriv`, or `AltmanZNonManu` |
-| `GrMgn%TTM` | `GMgn%TTM` | Correct pre-built gross margin factor name |
-| `NetMgn%TTM` | `NPMgn%TTM` | Correct pre-built net margin factor name |
-| `DebtToEqQ` | `DbtTot2EqQ` | Correct debt/equity factor name |
-| `TotDebt(0,QTR)` | `DbtTot(0,QTR)` | `TotDebt` is invalid — use `DbtTot` |
-| `NetInc(0,TTM)` | `NetIncBXor(0,TTM)` | Plain `NetInc` does not exist in P123 |
-| `ShOutDil(0,QTR)` | `SharesFD(0,QTR)` | `ShOutDil` is invalid — use `SharesFD` |
-| `ShOutDilQ` | `SharesFDQ` | `ShOutDil` pre-built form is also invalid |
-| `ShOut(0,QTR)` | `Shares(0,QTR)` | `ShOut` is invalid — use `Shares` |
-| `TotDebt` | `DbtTotQ` / `DbtTotTTM` / `DbtTotA` | Pre-built names for total debt |
+Each row was re-validated against the dictionary: the correct name is present and the wrong name
+is absent (or, where the wrong token is a real function, the row was dropped from the v2 list and
+recorded in the build notes).
+
+| Wrong (do not use) | Correct | Note |
+|---|---|---|
+| `ROIC%TTM` | `ROI%TTM` | P123 uses ROI, not ROIC, for the pre-built factor. |
+| `Accruals%AstTTM` | `(NetIncBXorTTM-OperCashFlTTM)/AstTotTTM` | No factor carries "accruals" in its name; compute it, or use `MScoreTATA` (same numerator over `AstTotQ`). |
+| `AccrualsTTM` | `(NetIncBXorTTM-OperCashFlTTM)/AstTotTTM` | Not a valid factor name; compute accruals from a formula, or use the Beneish component `MScoreTATA`. |
+| `OpCashFl(0,TTM)` | `OperCashFl(0,TTM)` | The cash-flow function is `OperCashFl`. |
+| `EVToEBITDATTM` | `EV2EBITDATTM` | Correct pre-built name; or use `OpIncBDeprTTM/EV`. |
+| `IntCov%TTM` | `IntCovTTM` | No `%` in the interest-coverage factor name. |
+| `EarnYield%TTM` | `EarnYield` | Yields are current-price figures and take no period suffix. `EarnYield` is `100 * EPSExclXorTTM / Price`; the `1/PEExclXorTTM` formula node is the same idea but inherits P/E's NA behaviour on losses. |
+| `Sqrt(MktCap)` | `MktCap^0.5` | No square-root function exists; `^` is the power operator (`x^(1/n)` for an n-th root). |
+| `<SNode>` | `<Composite>` | Wrong tag; causes a root-node error. |
+| `<RankPerformance>` | (omit entirely) | Not part of this schema. |
+| `IsNA(NetIncBXor(0,TTM))` | `NetIncBXor(0,TTM) = NA` | `IsNA` is a two-argument replacement function; test for NA with `= NA`. |
+| `AltmanZ` | `AltmanZOrig` | Use `AltmanZOrig`, `AltmanZPriv`, or `AltmanZNonManu`. |
+| `GrMgn%TTM` | `GMgn%TTM` | Correct pre-built gross-margin name. |
+| `NetMgn%TTM` | `NPMgn%TTM` | Correct pre-built net-margin name. |
+| `DebtToEqQ` | `DbtTot2EqQ` | Correct debt/equity name. |
+| `NetInc(0,TTM)` | `NetIncBXor(0,TTM)` | The plain net-income function does not exist; use `NetIncBXor`. |
+| `ShOutDil(0,QTR)` | `SharesFD(0,QTR)` | The diluted-shares function form is `SharesFD`. |
+| `ShOutDilQ` | `SharesFDQ` | The diluted-shares pre-built form is `SharesFDQ`. |
+| `ShOut(0,QTR)` | `Shares(0,QTR)` | The shares-outstanding function form is `Shares`. |
+| `TotDebt` | `DbtTotQ` / `DbtTotTTM` | The total-debt factor names start with `DbtTot`. |
+
+---
+
+## See Also
+
+- [Financials](financials.md) - balance-sheet, income, and cash-flow factor names.
+- [Ratios & Statistics](ratios-statistics.md) - valuation, profitability, and growth ratios.
+- [Technical](technical.md) - price and momentum formulas for ranking nodes.
+- [Advanced Functions](advanced-functions.md) - `FRank`, `ZScore`, and NA handling in formulas.
