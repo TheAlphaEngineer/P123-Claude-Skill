@@ -1,699 +1,578 @@
-# P123 Advanced Functions Reference
+# Advanced Functions - Portfolio123 Reference
 
-## Table of Contents
-1. [SetVar / ShowVar — Variables](#setvar)
-2. [Eval & NA/Neg Replacement — Conditional Logic](#eval)
-3. [FRank — Cross-Sectional Percentile Rank](#frank)
-4. [ZScore — Cross-Sectional Z-Score](#zscore)
-5. [FOrder, FCount, FSum, FMedian — Cross-Sectional Utilities](#forder)
-6. [Aggregate — Cross-Sectional Statistics](#aggregate)
-7. [Scope Parameter Values](#scope)
-8. [FHist — Historical Time Series](#fhist)
-9. [FHistRank, FHistRel, FHistZScore — Relative vs History](#fhistrank)
-10. [Loop Functions — Iteration with CTR](#loop)
-11. [Regression Functions & Statistics](#regression)
-12. [NodeRank & Ranking Functions](#noderank)
-13. [AI Factor Functions](#aifactor)
-14. [Screen-Only Functions](#screen-only)
-15. [Universe Operations (Strategy)](#universe-ops)
-16. [Consensus Estimate Functions](#consensus)
-17. [Surprise Functions](#surprises)
-18. [Dividend & Corporate Action Functions](#dividends)
-19. [Insider Functions](#insider)
-20. [Institutional Functions](#institutional)
-21. [Short Interest](#shortinterest)
+Advanced functions add cross-sectional ranking, historical and loop-based time series,
+regression, ranking-system access, AI-factor predictions, and screen/watchlist/account holdings
+logic to the P123 formula language. For the conditional and NA-handling operators (`Eval`,
+`IsNA`, `IsNeg`) and set statistics (`StdDev`, `RelStdDev`) see [Misc](misc.md); those are their
+official home category. The single- vs. two-argument `IsNA` defect is adjudicated here because
+loop and ranking formulas are where it most often bites - see
+[NA handling (IsNA arity)](#na-handling-isna-arity). For price and volume functions see
+[Technical](technical.md); for buy/sell rule state see [Strategy](strategy.md).
 
----
+Coverage line: 60 functions / 11 factors - extracted from the official Factor Reference on
+2026-06-09. Official subcategories: AI Factor; Ranking; FHist Functions; Loop Functions; Loop
+Regression; Relative vs. History; Relative vs. Group; Group Summary Statistics; Screener Only;
+Watchlists, Holdings, & Opinions.
 
-## SetVar / ShowVar — Variables <a name="setvar"></a>
+## Contents
 
-```
-SetVar(@name, expression)
-```
-
-- Variable names start with `@`
-- Evaluated once, cached for the stock being processed
-- Chain multiple SetVars; use in subsequent expressions
-
-**Display in report** (two ways):
-```
-@name:expression              // colon syntax — sets, displays, and returns value
-ShowVar(@name, expression)    // ShowVar — sets variable and displays in report
-```
-
-```
-SetVar(@pe, PEExclXorTTM)
-SetVar(@cheap, @pe < 15)
-SetVar(@quality, ROE%TTM > 15 AND GMgn%TTM > 40)
-@cheap AND @quality
-
-// ShowVar for grouping in screen reports
-ShowVar(@group, Eval(Yield=0, 0, Eval(Yield > 5, 2, 1)))
-ShowVar(@groupAvgCap, Aggregate("MktCap", #GroupVar, #Avg))
-MktCap < @groupAvgCap
-```
+- [NA handling (IsNA arity)](#na-handling-isna-arity)
+- [Scope values](#scope-values)
+- [AI Factor](#ai-factor)
+- [Ranking](#ranking)
+- [FHist Functions](#fhist-functions)
+- [Loop Functions](#loop-functions)
+- [Loop Regression](#loop-regression)
+- [Relative vs. History](#relative-vs-history)
+- [Relative vs. Group](#relative-vs-group)
+- [Group Summary Statistics](#group-summary-statistics)
+- [Screener Only](#screener-only)
+- [Watchlists, Holdings, & Opinions](#watchlists-holdings--opinions)
+- [Common Mistakes](#common-mistakes)
+- [See Also](#see-also)
 
 ---
 
-## Eval & NA/Neg Replacement — Conditional Logic <a name="eval"></a>
+## NA handling (IsNA arity)
 
-### Eval
+`IsNA` is a **two-argument** function. The official signature is `IsNA(expr1, expr2)`: it
+returns `expr1` when `expr1` is not NA, otherwise it returns `expr2`. There is **no**
+single-argument `IsNA(x)` boolean form. To test whether a value is NA, compare it to the `NA`
+constant: `expression = NA`.
 
-```
-Eval(condition, true_value, false_value)
-```
+This resolves a known defect carried by earlier community skill versions, which used
+`IsNA(x)` as if it returned a boolean (for example `Eval(IsNA(PEExclXorTTM), ..., ...)`). That
+usage does not work. The corrected idioms are:
 
-```
-// Use alternate metric when PE is NA
-Eval(IsNA(PEExclXorTTM), Pr2SalesTTM, PEExclXorTTM)
-
-// Sector-specific logic
-Eval(Sector = 40, DbtTot2EqQ < 15, DbtTot2EqQ < 2)
-
-// Nested multi-branch
-Eval(MktCap > 10000, 1, Eval(MktCap > 2000, 2, Eval(MktCap > 300, 3, 4)))
-
-// Winsorize
-Eval(PEExclXorTTM > 100, 100, Eval(PEExclXorTTM < 0, 0, PEExclXorTTM))
-```
-
-### Replacement Functions
-
-| Function | Description |
-|----------|-------------|
-| `IsNA(expr1, expr2)` | Returns `expr1` if not NA, otherwise `expr2` |
-| `IsNeg(expr1, expr2)` | Returns `expr1` if not negative, otherwise `expr2` |
-| `IsNegOrNA(expr1, expr2)` | Returns `expr1` if not negative and not NA, otherwise `expr2` |
-| `IsZero(expr1, expr2)` | Returns `expr1` if not zero, otherwise `expr2` |
-
-```
-// Replace NA PE with 999
+```p123
+// Test for NA (the correct boolean form)
+Eval(PEExclXorTTM = NA, Pr2SalesTTM, PEExclXorTTM)
+// Replace NA with a fallback value (the correct use of IsNA)
+IsNA(PEExclXorTTM, Pr2SalesTTM)
+// Replace NA with a literal
 IsNA(PEExclXorTTM, 999)
-
-// Replace negative FCF with 0
-IsNeg(FCFTTM, 0)
 ```
+
+The related replacement functions share the same two-argument shape (all in
+[Misc](misc.md)): `IsNeg(expr1, expr2)`, `IsNegOrNA(expr1, expr2)`, `IsZero(expr1, expr2)`.
+
+Evidence: the dictionary signature for `IsNA` is `expr1, expr2`, and the official Misc/Math
+detail page states "IsNA(expr1, expr2) can be used to replace NAs" and "NA values can be
+handled using `expression = NA`." The strategy factor description for `LastSellPrice`
+independently uses the same idiom: `Eval(LastSellPrice=NA,TRUE,Close(0) > LastSellPrice)`.
+
+All examples in this file and in the sibling reference files use the two-argument `IsNA` and
+the `= NA` test.
 
 ---
 
-## FRank — Cross-Sectional Percentile Rank <a name="frank"></a>
+## Scope values
 
-```
-FRank("formula" [, scope=#All, sort=#DESC, incl_na=#InclNA, sort_style=#Top])
-```
-
-**Returns**: 0–100 percentile rank.
-
-**Parameters**:
-- **formula**: P123 formula in quotes. Use backticks `` ` `` for complex expressions
-- **scope**: `#All`, `#Sector`, `#Industry`, `#SubIndustry` (see Scope section below)
-- **sort**: `#DESC` (default — higher values → higher rank), `#ASC` (lower values → higher rank, e.g., PE)
-- **incl_na**: `#InclNA` (default — include NAs), `#ExclNA` (assign NA to stocks with NA), `#NANeutral` (assign rank 50)
-- **sort_style**: `#Top` (default — ties get highest rank, min rank = 100/n), `#Neutral` (ties get average rank, min rank = 0)
-
-```
-// Top quintile value (low PE = good → #ASC)
-FRank("PEExclXorTTM", #All, #ASC) > 80
-
-// Top decile momentum
-FRank(`Close(0)/Close(252)`, #All, #DESC) > 90
-
-// Sector-relative quality
-FRank("ROE%TTM", #Sector, #DESC) > 70
-
-// Neutral NA handling
-FRank("PEExclXorTTM", #All, #ASC, #NANeutral) > 80
-
-// Complex formula with backticks
-FRank(`Eval(IsNA(PEExclXorTTM), Pr2SalesTTM * 15, PEExclXorTTM)`, #All, #ASC) > 75
-```
-
-### Composite scores
-
-```
-SetVar(@val, FRank("PEExclXorTTM", #All, #ASC))
-SetVar(@mom, FRank(`Ret%Chg(252, 21)`, #All, #DESC))
-SetVar(@qual, FRank("ROE%TTM", #All, #DESC))
-SetVar(@composite, 0.4 * @val + 0.3 * @mom + 0.3 * @qual)
-@composite > 70
-```
-
----
-
-## ZScore — Cross-Sectional Z-Score <a name="zscore"></a>
-
-```
-ZScore("formula" [, scope=#All, outlier_pct=7.5, na_value=0, max_zscore=3.5])
-```
-
-Returns: number of standard deviations from cross-sectional mean (clipped to ±max_zscore).
-
-- **outlier_pct**: trim % from each side (default 7.5%)
-- **na_value**: value assigned to NAs (default 0)
-- **max_zscore**: clipping boundary (default ±3.5)
-
-```
-ZScore("PEExclXorTTM", #All)
-ZScore("ROE%TTM", #Sector)
-
-// Combine z-scores
-SetVar(@z_pe, -1 * ZScore("PEExclXorTTM", #All))
-SetVar(@z_roe, ZScore("ROE%TTM", #All))
-@z_pe + @z_roe > 1
-```
-
----
-
-## FOrder, FCount, FSum, FMedian <a name="forder"></a>
-
-| Function | Description |
-|----------|-------------|
-| `FOrder("formula" [, scope=#All, sort=#DESC, distinct=FALSE, incl_na=#InclNA])` | Returns **position** in sorted array (1, 2, 3...) |
-| `FCount("formula" [, scope])` | Count of stocks where formula is true (non-zero) |
-| `FSum("formula" [, scope])` | Sum of formula values across scope |
-| `FMedian("formula" [, scope, excl_zero])` | Median of formula values across scope |
-
-```
-// How many stocks in my sector have PE < 20?
-FCount("PEExclXorTTM < 20", #Sector)
-
-// Industry median ROE
-FMedian("ROE%TTM", #Industry)
-
-// My ordinal position by market cap (1 = largest)
-FOrder("MktCap", #All, #DESC)
-```
-
----
-
-## Aggregate — Cross-Sectional Statistics <a name="aggregate"></a>
-
-```
-Aggregate("formula", scope [, method, outlier_pct, outlier_handl, excl_zero, excl_adrs, median_fallback])
-```
-
-**Parameters**:
-- **method**: `#Avg` (default — simple average), `#CapAvg` (cap-weighted average)
-- **scope**: `#All`, `#Sector`, `#Industry`, `#SubIndustry`, `#GroupVar`, `#GroupVar2`, `#Previous1`
-- **outlier_pct**: trim % from each side (default 16.5%)
-- **outlier_handl**: `#Exclude` (default — remove outliers), `#Winsor` (clip outliers to boundary values)
-- **excl_zero**: `TRUE`/`FALSE` (exclude zeros; default FALSE)
-- **excl_adrs**: `TRUE`/`FALSE` (exclude ADRs; default TRUE)
-- **median_fallback**: when > 0, falls back to simple median if not enough stocks in scope (default 0)
-
-**Note**: P123 does NOT use `#Mean`, `#Median`, `#StdDev`, `#Sum`, `#Count`, `#Min`, `#Max` as Aggregate methods. Use `#Avg` or `#CapAvg`. For other statistics, use `FMedian()`, `FSum()`, `FCount()`, or `ZScore()`.
-
-```
-// Industry average PE
-Aggregate("PEExclXorTTM", #Industry, #Avg)
-
-// Cap-weighted sector ROE
-Aggregate("ROE%TTM", #Sector, #CapAvg)
-
-// With Winsorized outliers
-Aggregate("PEExclXorTTM", #All, #Avg, 5, #Winsor)
-
-// Exclude zeros for yield
-Aggregate("Yield", #Industry, #Avg, 16.5, #Exclude, TRUE)
-```
-
----
-
-## Scope Parameter Values <a name="scope"></a>
-
-Used by `FRank`, `ZScore`, `Aggregate`, `FOrder`, `FCount`, `FSum`, `FMedian`:
+<!-- name-whitelist: #Mean #Median #Sum #Count #Min #Max -->
+The group functions (`FRank`, `ZScore`, `Aggregate`, `FOrder`, `FCount`, `FSum`, `FMedian`)
+take a scope argument. The 16 official scope constants (descriptions verbatim from the
+Factor Reference):
 
 | Scope | Description |
-|-------|-------------|
-| `#All` | Entire universe |
-| `#Sector` | GICS sector grouping |
-| `#Industry` | GICS industry grouping |
-| `#SubIndustry` | GICS sub-industry grouping |
-| `#Previous1` | Results from previous rule (screens only) |
-| `#GroupVar` | Groups based on `@Group` variable value |
-| `#GroupVar2` | Groups based on `@Group2` variable value |
+|---|---|
+| `#All` | Operate within selected universe (the default). |
+| `#Sector` | Operate within Sectors in selected universe. |
+| `#Industry` | Operate within Industries in selected universe. |
+| `#SubIndustry` | Operate within Sub-Industries in selected universe. |
+| `#SubSector` | Operate within Sub-Sectors in selected universe. |
+| `#SP500` | Operate within the SP500 stocks. |
+| `#Previous` | Operate on the results from previous rule. Available only in the Screener and Custom Universes (official footnote). |
+| `#GroupVar` | Operates on groups based on value of variable `@Group`. Not available in Ranking Systems (official footnote). |
+| `#Family` | Operate within each ETF Family. |
+| `#AssetClass` | Operate within each ETF Class. |
+| `#Region` | Operate within each ETF Region. |
+| `#Country` | Operate within each ETF Country. |
+| `#Method` | Operate within each ETF Method. |
+| `#Style` | Operate within each ETF Style. |
+| `#Size` | Operate within each ETF Size. |
+| `#ETFSector` | Operate within each ETF Sector. |
 
 ---
 
-## FHist — Historical Time Series <a name="fhist"></a>
+## AI Factor
 
-**Point-in-time value**:
+### Functions
+
+#### `AIFactor("AI Factor Name", "Predictor Name")`
+
+Returns the inferences (predictions) of your trained Predictor. Intended for rebalancing; it
+can also be used in backtests with some restrictions.
+
+**Example**
+```p123
+FRank(`AIFactor("My AI Factor", "lightgbm II predictor")`, #All, #DESC) > 90
 ```
-FHist("formula", weeksAgo)
-```
-Returns the value of `formula` as it was `weeksAgo` weeks in the past.
 
-**Statistical aggregates over historical samples**:
+#### `AIFactorValidation("AI Factor Name", "Model Name" [, "dup_id"])`
 
-| Function | Description |
-|----------|-------------|
-| `FHistAvg("formula", samples [, weeks_increment=1, NA_pct=20])` | **Average** of sampled historical values |
-| `FHistMax("formula", samples [, weeks_increment=1, NA_pct=20])` | Maximum |
-| `FHistMin("formula", samples [, weeks_increment=1, NA_pct=20])` | Minimum |
-| `FHistMed("formula", samples [, weeks_increment=1, NA_pct=20])` | Median |
-| `FHistSum("formula", samples [, weeks_increment=1, NA_pct=20])` | Sum |
-| `FHistStdDev("formula", samples [, weeks_increment=1, NA_pct=20])` | Standard deviation |
-| `FHistRelStdDev("formula", samples [, weeks_increment=1, NA_pct=20])` | Relative standard deviation |
+Returns the saved inference (prediction) from your model's validation run.
 
-**Parameters**:
-- **samples**: number of historical observations
-- **weeks_increment**: spacing between samples in weeks (default **1** = weekly)
-- **NA_pct**: max % NAs allowed before returning NA (default 20%)
-
-```
-// Average quarterly ROE over past year (4 samples, 13 weeks apart)
-FHistAvg("ROE%TTM", 4, 13)
-
-// Average PE over 5 years (5 annual samples)
-FHistAvg("PEExclXorTTM", 5, 52)
-
-// PE value exactly 1 year ago
-FHist("PEExclXorTTM", 52)
-
-// 3-year historical max of ROE
-FHistMax("ROE%TTM", 156, 1)
-
-// Dividend yield average: 65 samples spaced 4 weeks apart (~5 years)
-FHistAvg("Yield", 65, 4)
+**Example**
+```p123
+FRank(`AIFactorValidation("My AI Factor", "lightgbm II")`, #All, #DESC) > 90
 ```
 
 ---
 
-## FHistRank, FHistRel, FHistZScore — Relative vs History <a name="fhistrank"></a>
+## Ranking
 
-Compare current value to its own history:
+### Functions
 
-| Function | Description |
-|----------|-------------|
-| `FHistRank("formula", samples [, weeks_increment=1, sort=#DESC, sort_style=#Top, NA_value=NA, NA_pct=20])` | Percentile rank of current vs history (0–100) |
-| `FHistRel("formula", samples [, weeks_increment=1, NA_value=NA, NA_pct=20])` | Relative position (0–1) vs historical min/max |
-| `FHistZScore("formula", samples [, weeks_increment=1, clip=3.5, NA_value=NA, NA_pct=20])` | Z-score of current vs historical values |
+#### `Rating("RankName")`
 
+Rank (0–100) from the named ranking system. Accepts one of your systems or a P123 pre-built
+system. A maximum of 3 `Rating`/`RatingPos` calls may be used per request.
+
+#### `RatingPos("RankName")`
+
+Rank position from the named ranking system (1 = best).
+
+#### `NodeRank("name")`
+
+Rank of a named node within the current ranking system.
+
+#### `GetRank("ticker")`
+
+Rank of the specified ticker.
+
+#### `GetRankPos("ticker")`
+
+Rank position of the specified ticker.
+
+#### `RankPrev(weeksAgo)`
+
+Historical weekly rank based on the selected ranking system (updated every Saturday). The
+weeks-ago argument ranges 0–261.
+
+#### `RankPosPrev(weeksAgo)`
+
+Historical weekly rank position. The weeks-ago argument ranges 0–261.
+
+**Example**
+```p123
+// Rank improved week over week
+RankPrev(0) > RankPrev(1)
+// Use a node from the current ranking system
+NodeRank("Value") > 80
 ```
-// Is current PE historically high? (100 = at peak)
-FHistRank("PEExclXorTTM", 52, 1)
 
-// Mean reversion: PE historically low
-FHistRank("PEExclXorTTM", 104, 1) < 20
+### Factors
 
-// Z-score vs history
-FHistZScore("OpMgn%TTM", 52, 1) > 1
+| Factor | Description | Period |
+|---|---|---|
+| `Rank` | Latest stock rank, updated daily Tuesday–Saturday. | |
+| `RankPos` | Position within the ranked array (1 = highest ranked). | |
+| `RankBars` | Number of bars (trading days) since the last rank data. | |
 
-// Relative position 0-1
-FHistRel("MktCap", 52, 1)
+---
+
+## FHist Functions
+
+`FHist` reads a formula's value as it was a number of weeks in the past; the aggregate variants
+sample the formula multiple times and summarize. Split/dividend-sensitive values are adjusted to
+the as-of (observation) date.
+
+### Functions
+
+#### `FHist("formula", weeksAgo)`
+
+Value of the formula a number of weeks in the past (negative values look into the future).
+
+#### `FHistAvg("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Average of the formula sampled `samples` times, spaced `weeks_increment` weeks apart. The first sample is the current value: `FHistAvg("ROE%TTM", 4, 13)` is the mean of `ROE%TTM` now and 13, 26 and 39 weeks ago (checked on 58 weekly dates). `FHist("formula", n)` is the value `n` weeks ago.
+
+#### `FHistMax("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Maximum of the sampled historical values.
+
+#### `FHistMin("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Minimum of the sampled historical values.
+
+#### `FHistMed("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Median of the sampled historical values.
+
+#### `FHistSum("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Sum of the sampled historical values.
+
+#### `FHistStdDev("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Standard deviation of the sampled historical values.
+
+#### `FHistRelStdDev("formula", samples [, weeks_increment=1, NA_pct=20])`
+
+Relative standard deviation of the sampled historical values.
+
+**Example**
+```p123
+// Price-to-sales below its 3-year average (39 samples, 4 weeks apart)
+Pr2SalesTTM < FHistAvg("Pr2SalesTTM", 39, 4)
 ```
 
 ---
 
-## Loop Functions — Iteration with CTR <a name="loop"></a>
+## Loop Functions
 
-Loop functions execute a formula multiple times using a `CTR` counter variable:
+Loop functions evaluate a formula multiple times using a `CTR` counter variable that increments
+each iteration. Optional parameters control the iteration: start (default 0), increment
+(default 1), an NA-skipping flag, and a break-on-NA flag, as shown in each signature.
 
-```
-LoopFunction("formula(CTR)", iterations [, start=0, increment=1, ...])
-```
+### Functions
 
-### Aggregate Loops
+#### `LoopAvg("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-| Function | Description |
-|----------|-------------|
-| `LoopAvg("formula(CTR)", iterations [, start, increment, noNAs, breakOnNA])` | Average of iterated values |
-| `LoopMax(...)` | Maximum |
-| `LoopMin(...)` | Minimum |
-| `LoopMedian(...)` | Median |
-| `LoopSum(...)` | Sum |
-| `LoopStdDev(...)` | Standard deviation |
-| `LoopRelStdDev(...)` | Relative standard deviation |
-| `LoopStreak("formula(CTR)", iterations [, start, increment, streak=#Positive, recent=TRUE])` | Streak count (`recent=FALSE` for longest streak) |
-| `LoopProd("formula(CTR)", iterations [, start, increment, noNAs=FALSE, break=FALSE])` | Product of iterated values |
+Average of the iterated values.
 
-### Relative vs Loop History
+#### `LoopMax("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-| Function | Description |
-|----------|-------------|
-| `LoopRank("formula(CTR)", iterations [, start, incr, sort, sort_style, NA_value, NA_pct])` | Percentile rank vs iterated values |
-| `LoopRel("formula(CTR)", iterations [, start, increment, NA_value, NA_pct])` | Relative position 0–1 |
-| `LoopZScore("formula(CTR)", iterations [, start, increment, clip, NA_value, NA_pct])` | Z-score vs iterated values |
+Maximum of the iterated values.
 
-```
-// Average of quarterly EPS over past 5 years (20 quarters)
-LoopAvg("EPSExclXor(CTR, QTR)", 20)
+#### `LoopMin("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-// Number of profitable years out of last 10
-LoopSum("Eval(EPSExclXor(CTR, ANN) > 0, 1, 0)", 10)
+Minimum of the iterated values.
 
-// Insider buying streak
-LoopStreak("InsiderBuySh3M(CTR)", 12, 0, 1, #Positive)
+#### `LoopMedian("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-// EPS stability (low relative std dev = stable)
-LoopRelStdDev("EPSExclXor(CTR, QTR)", 20) / 100
-```
+Median of the iterated values.
 
----
+#### `LoopSum("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-## Regression Functions & Statistics <a name="regression"></a>
+Sum of the iterated values.
 
-### Step 1: Compute regression (choose one)
+#### `LoopProd("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-| Function | Description |
-|----------|-------------|
-| `LinRegVals(y0, y1, ..., y50)` | Regression on Y values (time series) |
-| `LinRegXYVals(x0, y0, x1, y1, ..., x50, y50)` | Regression on XY pairs |
-| `LinReg("formula(CTR)", iterations [, start, increment])` | Loop-based time series regression |
-| `LinRegXY("X-Formula(CTR)", "Y-Formula(CTR)", iterations [, start, increment])` | Loop-based XY regression |
+Product of the iterated values.
 
-These return `TRUE` if regression succeeds, `FALSE` otherwise.
+#### `LoopStdDev("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-### Step 2: Access regression statistics
+Standard deviation of the iterated values.
 
-Place these **after** the regression function (to the right or below):
+#### `LoopRelStdDev("formula(CTR)", iterations [, start=0, increment=1, noNAs=FALSE, break=FALSE])`
 
-| Stat | Description |
-|------|-------------|
-| `RegGr%([period=1])` | Growth rate (annualize with period param) |
-| `RegEst(offset)` / `EstimateY(offset)` | Y estimate at offset |
-| `EstimateXY(X)` | Y estimate for a given X (XY regression) |
-| `SurpriseY(offset)` | Surprise (estimated vs actual) |
-| `Slope` | Slope of regression line |
-| `SlopeConf%` | Confidence = 100 × (1 − SlopePVal) |
-| `SlopePVal` | P-value of slope |
-| `SlopeSE` | Slope standard error |
-| `SlopeTStat` | Slope t-statistic |
-| `R` | Correlation coefficient |
-| `R2` | Coefficient of determination (R²) |
-| `Intercept` | Y-intercept |
-| `InterceptSE` | Y-intercept standard error |
-| `SE` | Standard error of Y estimate (Sy.x) |
-| `Samples` | Number of samples used |
+Relative standard deviation of the iterated values.
 
-```
-// Sales growth trend via regression
-LinReg("Sales(CTR, ANN)", 5)
-RegGr%()
+#### `LoopStreak("formula(CTR)", iterations [, start=0, increment=1, streak=#Positive, recent=TRUE])`
 
-// EPS regression with confidence check
-LinReg("EPSExclXor(CTR, QTR)", 20)
-Eval(SlopeConf% > 90, RegGr%(), NA)
-```
+Streak count of the iterated values; by default the most recent streak of positive values.
 
-**Note**: Regression functions require an **Ultimate subscription**.
-
----
-
-## NodeRank & Ranking Functions <a name="noderank"></a>
-
-| Function | Description |
-|----------|-------------|
-| `NodeRank("name")` | Rank of a specific node in the **current** ranking system |
-| `Rating("RankName")` | Rank from a **different** named ranking system |
-| `RatingPos("RankName")` | Rank position from a different ranking system |
-| `GetRank("ticker")` | Rank of a specific ticker |
-| `GetRankPos("ticker")` | Rank position of a specific ticker |
-| `RankPrev(weeksAgo)` | Historical weekly rank |
-| `RankPosPrev(weeksAgo)` | Historical weekly rank position |
-| `RankBars` | Bars since rank was last calculated |
-| `Rank` | Latest daily-updated rank |
-
-**Note**: P123 does NOT have `OtherRank()`. Use `Rating("name")` or `RatingPos("name")`.
-
-```
-// Use nodes from current ranking system
-NodeRank("Value") > 80 AND NodeRank("Quality") > 60
-
-// Compare with another ranking system
-Rating("My Quality Rank") > 70
+**Example**
+```p123
+// Recreate SMA(5)
+LoopAvg("Close(CTR)", 5)
+// Count up-days over the past 10 bars
+LoopSum("Close(CTR) > Close(CTR + 1)", 10)
+// Quarters of rising after-tax income, 8 of the last 10
+LoopSum("IncAftTax(CTR, QTR) > IncAftTax(CTR + 1, QTR)", 10) >= 8
+// Closed higher than the previous day for more than 10 days in a row
+LoopStreak("Close(CTR)", 21, 0, 1, #Increasing, TRUE) > 10
+// 5-year compound annual sales growth, as a fraction: 5th root via ^
+LoopProd("Sales(CTR, ANN) / Sales(CTR + 1, ANN)", 5)^(1/5) - 1
 ```
 
 ---
 
-## AI Factor Functions <a name="aifactor"></a>
+## Loop Regression
 
-```
-AIFactor("AI Factor Name", "Predictor Name")
-AIFactorValidation("AI Factor Name", "Model Name" [, "dup_id"])
+These run a regression over loop-iterated values and return TRUE on success. Place the
+regression statistics (`Slope`, `R2`, `SurpriseY`, etc.) immediately after the call.
+
+### Functions
+
+#### `LinReg("Formula(CTR)", iterations [, start, increment])`
+
+Time-series regression over the iterated values.
+
+#### `LinRegXY("X-Formula(CTR)", "Y-Formula(CTR)", iterations [, start, increment])`
+
+Bivariate (XY) regression over the iterated value pairs.
+
+**Example**
+```p123
+// 10-year sales regression: positive slope, good fit, latest above trend
+LinReg("Sales(CTR, ANN)", 10) = TRUE
+R2 > 0.8 and Slope > 0 and SurpriseY(0) > 0
+// Rank on the slope of the past 60 prices when the regression succeeds
+Eval(LinReg("Close(CTR)", 60), Slope, NA)
 ```
 
-```
-// Use AI prediction in screen
-FRank(`AIFactor("My AI Factor", "lightgbm predictor")`, #All, #DESC) > 80
+The `Eval` wrapper is load-bearing here, unlike around `SetVar` / `ShowVar`: `LinReg` returns
+FALSE when the regression cannot be completed, so the third argument is reachable. The official
+reference defines the prebuilt smoothed factors exactly this way - `SalesRegEstTTM` equals
+`Eval(LinReg("Sales(CTR, TTM)", 10, 0, 2), EstimateY(0), NA)`. Do not "simplify" it.
+
+Regression statistics available after a successful regression: `Slope`, `SlopeConf%`,
+`SlopePVal`, `SlopeSE`, `SlopeTStat`, `R`, `R2`, `Intercept`, `InterceptSE`, `SE`, `Samples`,
+`EstimateY(offset)`, `EstimateXY(X)`, `SurpriseY(offset)`, and `RegGr%([period])`. (These stats
+and `LinRegVals` / `LinRegXYVals` are documented in [Misc](misc.md).)
+
+---
+
+## Relative vs. History
+
+Compare the most recent value of a formula to its own historical (or loop-iterated) values.
+
+### Functions
+
+#### `FHistRank("formula", samples [, weeks_increment=1, sort=#DESC, sort_style=#Top, NA_value=NA, NA_pct=20])`
+
+Percentile rank (0–100) of the most recent value versus previous point-in-time values.
+
+#### `FHistRel("formula", samples [, weeks_increment=1, NA_value=NA, NA_pct=20])`
+
+Relative position (0–1) of the most recent value between the historical minimum and maximum.
+
+#### `FHistZScore("formula", samples [, weeks_increment=1, clip=3.5, NA_value=NA, NA_pct=20])`
+
+Z-score of the most recent value versus previous point-in-time values.
+
+#### `LoopRank("formula(CTR)", iterations [, start=0, increment=1, sort=#DESC, sort_style=#Top, NA_value=NA, NA_pct=20])`
+
+Percentile rank of the most recent loop value versus the other iterated values.
+
+#### `LoopRel("formula(CTR)", iterations [, start=0, increment=1, NA_value=NA, NA_pct=20])`
+
+Relative position (0–1) of the most recent loop value between the iterated minimum and maximum.
+
+#### `LoopZScore("formula(CTR)", iterations [, start=0, increment=1, clip=3.5, NA_value=NA, NA_pct=20])`
+
+Z-score of the most recent loop value versus the other iterated values.
+
+**Example**
+```p123
+// Gross margin in the top decile vs. the last 20 reported values
+LoopRank("GMgn%(CTR, TTM)", 20) >= 90
 ```
 
 ---
 
-## Screen-Only Functions <a name="screen-only"></a>
+## Relative vs. Group
 
-| Function | Description |
-|----------|-------------|
-| `IndCount` | Running count of stocks in same industry (must be last rule) |
-| `SubIndCount` | Running count in same sub-industry (must be last rule) |
-| `ShowCorrel(N)` | Show correlation matrix in report |
-| `Screen("ScreenName", top)` | Run another screen; if `top > 0`, return only top N stocks |
-| `HoldingsCnt("ListName")` | Count of list stocks that are current holdings |
+Cross-sectional ranking and scoring across a scope (see [Scope values](#scope-values)).
 
-### Account / Portfolio / Watchlist Holdings
+### Functions
 
-| Function | Description |
-|----------|-------------|
-| `Account(id1 [, .., id10])` | TRUE if stock is held in account |
-| `AccountOpen(id1 [, .., id10])` | Calendar days since position opened |
-| `AccountClose(id1 [, .., id10])` | Calendar days since position closed |
-| `AccountOpenBar(id1 [, .., id10])` | Bars since position opened |
-| `AccountCloseBar(id1 [, .., id10])` | Bars since position closed |
-| `Portfolio(...)` | Same syntax for strategies |
-| `Watchlist(...)` | Same syntax for watchlists |
+#### `FRank("formula" [, scope=#All, sort=#DESC, incl_na=#InclNA, sort_style=#Top])`
 
-**Note**: P123 does NOT have `SectorCount` or `SectCount`. Only `IndCount` and `SubIndCount` exist.
+Ranks stocks on a formula and returns the percentile (0–100). `sort` is `#DESC` (higher value
+ranks higher) or `#ASC` (lower value ranks higher, e.g. for valuation). `incl_na` is `#InclNA`,
+`#ExclNA`, or `#NANeutral`. `sort_style` is `#Top` or `#Neutral`.
 
----
+#### `FOrder("formula" [, scope=#All, sort=#DESC, distinct=FALSE, incl_na=#InclNA])`
 
-## Universe Operations (Strategy) <a name="universe-ops"></a>
+Sorts stocks on a formula and returns the position in the array (1, 2, 3, ...).
 
-These evaluate formulas across the universe, useful in strategy buy/sell rules:
+#### `ZScore("formula" [, scope=#All, outlier_pct=7.5, na_value=0, max_zscore=3.5])`
 
-| Function | Description |
-|----------|-------------|
-| `UnivAvg("criteria", "formula")` | Simple average of formula where criteria is true |
-| `UnivCapAvg("criteria", "formula")` | Cap-weighted average |
-| `UnivMedian("criteria", "formula")` | Median |
-| `UnivMax("criteria", "formula")` | Maximum |
-| `UnivMin("criteria", "formula")` | Minimum |
-| `UnivSum("criteria", "formula")` | Sum |
-| `UnivStdDev("criteria", "formula")` | Standard deviation |
-| `UnivCnt("criteria")` | Count stocks passing criteria |
-| `UnivExclude("tic1, tic2...")` | Exclude specific tickers |
-| `UnivSubset("tic1, tic2...")` | Only include specific tickers |
-| `UnivRBICS(rcode, rcode, ...)` | Filter by RBICS classification |
+Number of standard deviations from the cross-sectional mean, clipped to `±max_zscore`.
 
-```
-// Average PE of SP500 stocks with PE > 0
-UnivAvg("PEExclXorTTM > 0", "PEExclXorTTM")
-
-// Number of stocks in universe with positive momentum
-UnivCnt("Ret%Chg(252) > 0")
+**Example**
+```p123
+// Cheapest quintile (low PE is good, so #ASC)
+FRank("PEExclXorTTM", #All, #ASC) > 80
+// Sector-relative quality
+FRank("ROE%TTM", #Sector, #DESC) > 70
+// Complex expression with backticks
+FRank(`Close(0)/Close(252)`, #All, #DESC) > 90
 ```
 
 ---
 
-## Consensus Estimate Functions <a name="consensus"></a>
+## Group Summary Statistics
 
-```
-ConsEstMean(cons_item [, period, weekAgo])
-ConsEstMedian(cons_item [, period, weekAgo])
-ConsEstHi(cons_item [, period, weekAgo])
-ConsEstLow(cons_item [, period, weekAgo])
-ConsEstCnt(cons_item [, period, weekAgo])
-ConsEstStdDev(cons_item [, period, weekAgo])
-ConsEstUp(cons_item [, period, weekAgo])
-ConsEstDn(cons_item [, period, weekAgo])
-ConsEstRSD(cons_item [, period, weekAgo])
-```
+Group statistics across a scope. `FRank`, `FOrder`, and `ZScore` are covered under
+[Relative vs. Group](#relative-vs-group).
 
-**cons_item**: `#EPS`, `#Sales`, `#EBITDA`, `#CapEx`, `#FCF`, `#DPS`
-**period**: `#CQ`, `#NQ`, `#CY`, `#NY`, `#2Y`
-**weekAgo**: 0 (current), 1, 2, ... (for revision tracking)
+### Functions
 
-```
-// EPS revision breadth
-ConsEstUp(#EPS, #CY) - ConsEstDn(#EPS, #CY)
+#### `Aggregate("formula", scope [, method, outlier_pct, outlier_handl, excl_zero, excl_adrs, median_fallback])`
 
-// Sales estimate trend (current vs 4 weeks ago)
-ConsEstMean(#Sales, #CY) / ConsEstMean(#Sales, #CY, 4) - 1
-```
+Average (`method = #Avg`, default) or cap-weighted average (`method = #CapAvg`) of the formula
+in each scope. `outlier_handl` is `#Exclude` (default) or `#Winsor`. P123 does not support
+`#Mean`, `#Median`, `#Sum`, `#Count`, `#Min`, or `#Max` as `Aggregate` methods - use `FMedian`,
+`FSum`, `FCount`, or `ZScore` for those.
 
-### Historical Estimates
+#### `FCount("formula" [, scope])`
 
-| Function | Description |
-|----------|-------------|
-| `EPSEst(offset, type)` | Historical mean EPS estimate |
-| `SalesEst(offset, type)` | Historical mean sales estimate |
-| `EPSHistEstCnt(offset, type)` | Historical number of EPS analysts |
-| `SalesHistEstCnt(offset, type)` | Historical number of sales analysts |
-| `EPSHistEstSD(offset, type)` | Historical EPS estimate std dev |
-| `SalesHistEstSD(offset, type)` | Historical sales estimate std dev |
+Count of stocks in the scope where the formula is true (non-zero).
 
-**Note**: P123 does NOT have `HistEstEPS()`, `HistEstSales()`, or `HistEstNumAnalysts()`. Use `EPSEst()`, `SalesEst()`, `EPSHistEstCnt()`, `SalesHistEstCnt()`.
+#### `FMedian("formula" [, scope, excl_zero])`
 
-### Recommendation Functions
+Median value of the formula in the scope.
 
-```
-ConsRec(rec_stat [, weekAgo])
-```
+#### `FSum("formula" [, scope])`
 
-**rec_stat**: `#Mean`, `#Median`, `#Buy`, `#Outperform`, `#Hold`, `#Underperform`, `#Sell`, `#HoldCnt`, `#Total`
+Sum of the formula values in the scope.
 
----
-
-## Surprise Functions <a name="surprises"></a>
-
-| Function | Description |
-|----------|-------------|
-| `EPSSurprise(offset, type)` | EPS surprise (estimate vs actual) |
-| `SalesSurprise(offset, type)` | Sales surprise (%) |
-| `EPSSUE(offset, type [, constraint])` | Standardized unexpected earnings |
-| `SalesSUS(offset, type [, constraint])` | Standardized unexpected sales |
-
----
-
-## Dividend & Corporate Action Functions <a name="dividends"></a>
-
-### Dividends
-
-| Function / Factor | Description |
-|-------------------|-------------|
-| `DivPS(offset, type [, div_type, div_dt, cnt_flag])` | Dividends per share in filing period |
-| `DivPSDays(days [, offset, div_type, div_dt, cnt_flag])` | Dividends per share in a time period |
-| `DaysFromDivEx` | **Days since last ex-dividend date** |
-| `Div3YCGr%` | Dividend growth rate 3Y (corporate action data) |
-| `Div5YCGr%` | Dividend growth rate 5Y |
-
-**Note**: P123 does NOT have `IndDivA` or `DivDays`. The factor for days since ex-date is `DaysFromDivEx`.
-
-### Splits & Corporate Actions
-
-| Function / Factor | Description |
-|-------------------|-------------|
-| `Splits(days [, countFlag])` | Compounded split ratio in period |
-| `SplitCount(days)` | Number of splits in period |
-| `SplitFactor` | Most recent split factor |
-| `FutureDivFactor` | Product of all future dividends |
-| `FutureSplitFactor` | Product of all future splits |
-| `FutureDivSplitFactor` | Product of all future splits and dividends |
-| `PastCorpAct(ca_type [, ca_status, lookback, ca_retvalue])` | Past corporate actions query |
-| `PendingCorpAct(ca_type [, ca_retvalue])` | Pending corporate actions |
-
----
-
-## Insider Functions <a name="insider"></a>
-
-All insider functions take a `mo_offset` parameter (0 = current, 1 = one month ago, etc.):
-
-### Shares
-
-| Function | Description |
-|----------|-------------|
-| `InsiderBuySh1M(mo_offset)` | Shares bought by insiders, past 1 month |
-| `InsiderBuySh3M(mo_offset)` | Shares bought, past 3 months |
-| `InsiderBuySh6M(mo_offset)` | Shares bought, past 6 months |
-| `InsiderBuySh12M(mo_offset)` | Shares bought, past 12 months |
-| `InsiderSellSh1M(mo_offset)` | Shares sold, past 1 month |
-| `InsiderSellSh3M(mo_offset)` | Shares sold, past 3 months |
-| `InsiderSellSh6M(mo_offset)` | Shares sold, past 6 months |
-| `InsiderSellSh12M(mo_offset)` | Shares sold, past 12 months |
-
-### Transactions
-
-| Function | Description |
-|----------|-------------|
-| `InsiderBuyTran1M(mo_offset)` | Buy transactions, past 1 month |
-| `InsiderBuyTran3M(mo_offset)` | Buy transactions, past 3 months |
-| `InsiderBuyTran6M(mo_offset)` | Buy transactions, past 6 months |
-| `InsiderBuyTran12M(mo_offset)` | Buy transactions, past 12 months |
-| `InsiderSellTran1M(mo_offset)` | Sell transactions, past 1 month |
-| `InsiderSellTran3M(mo_offset)` | Sell transactions, past 3 months |
-| `InsiderSellTran6M(mo_offset)` | Sell transactions, past 6 months |
-| `InsiderSellTran12M(mo_offset)` | Sell transactions, past 12 months |
-
-### Unique Insiders
-
-| Function | Description |
-|----------|-------------|
-| `InsiderUniqBuy1M(mo_offset)` | Unique insiders buying, past 1 month |
-| `InsiderUniqBuy3M(mo_offset)` | Unique insiders buying, past 3 months |
-| `InsiderUniqSell1M(mo_offset)` | Unique insiders selling, past 1 month |
-| `InsiderUniqSell3M(mo_offset)` | Unique insiders selling, past 3 months |
-
-**Note**: P123 does NOT have pre-built ratio factors like `InsiderBuySell%3Mo`. Build ratios manually:
-```
-// Custom insider buy/sell ratio
-Eval(InsiderSellSh3M(0) > 0, InsiderBuySh3M(0) / InsiderSellSh3M(0), NA)
+**Example**
+```p123
+// Cheaper than the industry average PE
+PEExclXorTTM < Aggregate("PEExclXorTTM", #Industry, #Avg)
+// How many sector peers have PE below 20
+FCount("PEExclXorTTM < 20", #Sector)
+// Larger than the industry median market cap
+MktCap > FMedian("MktCap", #Industry)
 ```
 
 ---
 
-## Institutional Functions <a name="institutional"></a>
+## Screener Only
 
-All take a `period_offset` parameter (0 = most recent filing, 1 = previous, etc.):
+These functions work only in the screener.
 
-| Function | Description |
-|----------|-------------|
-| `InstitutionalHolders(period_offset)` | Total number of institutional investors |
-| `InstitutionalPctOwn(period_offset)` | % of shares owned by institutions |
-| `InstitutionalPctChg(period_offset)` | Net shares changed as % |
-| `InstitutionalBuyers(period_offset)` | Number of investors who bought |
-| `InstitutionalSellers(period_offset)` | Number of investors who sold |
-| `InstitutionalNewBuyers(period_offset)` | Number who opened new positions |
-| `InstitutionalClosed(period_offset)` | Number who closed positions |
-| `InstitutionalShsHeld(period_offset)` | Total shares held |
-| `InstitutionalShsBought(period_offset)` | Shares bought |
-| `InstitutionalShsSold(period_offset)` | Shares sold |
-| `InstitutionalShsNet(period_offset)` | Net shares (bought − sold) |
+### Functions
 
-**Verified against P123 syntax reference (2026-03-21):**
-- `InstOwn%` and `InstOwnChg%QoQ` are **invalid** — use `Inst%Own` (pre-built factor) or `InstitutionalPctOwn(offset)` (function)
-- Additional pre-built factors: `Inst%OwnPQ`, `Inst#ShsOwn`, `Inst#ShsOwnPQ`, `Inst#ShsPurch`, `Inst#ShsPurchPQ`, `Inst#ShsSold`, `Inst#ShsSoldPQ`, `InstNetPurch`, `InstNetPurchPQ`
+#### `Screen("ScreenName", top)`
 
----
+Runs the named screen; if `top > 0`, returns only the top `top` stocks. Enables screens of
+screens.
 
-## Short Interest <a name="shortinterest"></a>
+#### `ShowCorrel(period, samples)`
 
-Short interest factors (pre-built, USA only). Names verified against official P123 syntax reference (2026-03-21):
+Produces a correlation matrix in the screen report.
 
-| Factor | Description |
-|--------|-------------|
-| `SI%Float` / `SI%FloatPM` / `SI%FloatPM2` / `SI%FloatPM3` | Short interest as % of float (current + prev months) |
-| `SI%ShsOut` / `SI%ShsOutPM` / `SI%ShsOutPM2` / `SI%ShsOutPM3` | Short interest as % of shares outstanding |
-| `SIRatio` / `SIRatioPM` / `SIRatioPM2` / `SIRatioPM3` | Days to cover (current + prev months) |
-| `SIPM` / `SIPM2` / `SIPM3` / `SICM` | Short interest volume (prev months / current month) |
-| `SI1Mo%Chg` | Short interest 1-month % change |
+#### `ShowVar(@myvar, expression)`
 
-**⚠️ Invalid names:** `ShortInt%Float`, `ShortInt%ShOut`, `ShortIntRatio`, `SI%ShOut` (correct: `SI%ShsOut`), `SI%ShOutPM` (correct: `SI%ShsOutPM`), `SI%Chg` (correct: `SI1Mo%Chg`).
+Defines `@myvar`, sets it to `expression`, and adds an `@myvar` column to the screen report.
+Like `SetVar`, **`ShowVar` always returns TRUE (1) - it does not return the assigned value**,
+so the same inlining applies: multiply the call into the formula that consumes the variable
+rather than wrapping it in `Eval`.
 
-Short interest data is published twice monthly with ~10 days lag.
+```p123
+// ShowVar returns 1, so this is 1 * @r * Abs(@r), which is @r * Abs(@r)
+ShowVar(@r, Ret%Chg(252, 21)) * @r * Abs(@r)
+// Wrong: the condition is TRUE for every stock, so the NA branch is dead code
+Eval(ShowVar(@r, Ret%Chg(252, 21)), @r * Abs(@r), NA)
+```
 
----
+`ShowVar` is screener-only; use `SetVar` elsewhere, and the `:` operator when the expression's
+value is wanted instead of TRUE. Full semantics, the sell-rule negation caveat, the provenance
+caveat on same-formula reuse, and the `SetVar` vs. `:` contrast are in
+[Misc](misc.md#setvarmyvar-expression).
 
-## Analyst Opinions <a name="opinions"></a>
+### Factors
 
-| Factor | Description |
-|--------|-------------|
-| `Opinion` | Current analyst opinion score |
-| `Opinion%Chg` | Change in opinion |
-| `OpinionBars` / `OpinionDays` | Bars/days since opinion change |
+| Factor | Description | Period |
+|---|---|---|
+| `SecCount` | Running count of stocks in the sector (must be the last rule). | |
+| `SubSecCount` | Running count of stocks in the sub-sector (must be the last rule). | |
+| `IndCount` | Running count of stocks in the industry (must be the last rule). | |
+| `SubIndCount` | Running count of stocks in the sub-industry (must be the last rule). | |
 
 ---
 
-## Strategy & Screener Functions <a name="strategy"></a>
+## Watchlists, Holdings, & Opinions
 
-Functions available only within strategy/screener contexts:
+Membership and timing of a stock in your watchlists, account, and portfolio positions, plus
+recorded opinions. For the `id` parameters use either the name in quotes or the numeric ID.
 
-| Factor | Description |
-|--------|-------------|
-| `InList` | TRUE if stock is in a specified list |
-| `SecCount` / `SecWeight` | Sector count / weight in portfolio |
-| `SubSecCount` / `SubSecWeight` | Sub-sector count / weight |
-| `CapCount` / `CapWeight` | Cap-size count / weight |
-| `LargeCount` / `LargeWeight` | Large-cap allocation |
-| `MidCount` / `MidWeight` | Mid-cap allocation |
-| `SmallCount` / `SmallWeight` | Small-cap allocation |
-| `MicroCount` / `MicroWeight` | Micro-cap allocation |
-| `IndWeight` / `SubIndWeight` | Industry / sub-industry weight |
+### Functions - Watchlists
+
+#### `WatchlistCurrent("Name")`
+
+Returns TRUE if the stock is currently in your watchlist.
+
+#### `Watchlist(id1 [, .., id10])`
+
+Returns TRUE if the stock was in the watchlist on the date in question.
+
+#### `WatchlistOpen(id1 [, .., id10])`
+
+Calendar days since the stock was first added, otherwise NA.
+
+#### `WatchlistOpenBar(id1 [, .., id10])`
+
+Bars since the stock was first added, otherwise NA.
+
+#### `WatchlistClose(id1 [, .., id10])`
+
+Calendar days since the stock was last removed; -1 if currently in the watchlist; NA if not
+added within the past 6 months.
+
+#### `WatchlistCloseBar(id1 [, .., id10])`
+
+Bars since the stock was last removed; -1 if currently in the watchlist; NA otherwise.
+
+### Functions - Account Holdings
+
+#### `Account(id1 [, .., id10])`
+
+Returns TRUE if the stock is an open position in the account.
+
+#### `AccountOpen(id1 [, .., id10])`
+
+Calendar days since the position was first opened, otherwise NA.
+
+#### `AccountOpenBar(id1 [, .., id10])`
+
+Bars since the position was first opened, otherwise NA.
+
+#### `AccountClose(id1 [, .., id10])`
+
+Calendar days since the position was last closed; -1 if currently held; NA if not held within
+the past 6 months.
+
+#### `AccountCloseBar(id1 [, .., id10])`
+
+Bars since the position was last closed; -1 if currently held; NA otherwise.
+
+### Functions - Portfolio Holdings
+
+#### `Portfolio(id1 [, .., id10])`
+
+Returns TRUE if the stock is an open position in the portfolio.
+
+#### `PortfolioOpen(id1 [, .., id10])`
+
+Calendar days since the position was first opened, otherwise NA.
+
+#### `PortfolioOpenBar(id1 [, .., id10])`
+
+Bars since the position was first opened, otherwise NA.
+
+#### `PortfolioClose(id1 [, .., id10])`
+
+Calendar days since the position was last closed; -1 if currently held; NA otherwise.
+
+#### `PortfolioCloseBar(id1 [, .., id10])`
+
+Bars since the position was last closed; -1 if currently held; NA otherwise.
+
+### Factors - Recent Opinion
+
+| Factor | Description | Period |
+|---|---|---|
+| `Opinion` | Your most recent opinion for the stock, or NA. | |
+| `Opinion%Chg` | Total return percent since your most recent opinion. | |
+| `OpinionBars` | Bars since your most recent opinion. | |
+| `OpinionDays` | Calendar days since your most recent opinion. | |
+
+---
+
+## Common Mistakes
+
+| Wrong (do not use) | Correct | Note |
+|---|---|---|
+| `IsNA(PEExclXorTTM)` | `PEExclXorTTM = NA` | `IsNA` takes two arguments; test for NA with `expression = NA`. |
+| `Eval(IsNA(x), a, b)` | `Eval(x = NA, a, b)` | Single-argument `IsNA` as a boolean does not work. |
+| `LatestRank` | `Rank` | The latest daily rank factor is `Rank`. |
+| `OtherRank("name")` | `Rating("name")` | Cross-system rank is `Rating` / `RatingPos`. |
+| `SectorCount` | `SecCount` | The sector running count is `SecCount`. |
+| `RegEst(0)` | `EstimateY(0)` | The regression Y-estimate function is `EstimateY`. |
+| `Eval(ShowVar(@x, f), A, NA)` | `ShowVar(@x, f) * A` | `ShowVar` returns TRUE; the `NA` branch is dead code. |
+
+---
+
+## See Also
+
+- [Misc](misc.md) - `SetVar`, `Eval`, `IsNA`, set statistics, and regression-value functions.
+- [Technical](technical.md) - price, volume, and moving-average functions.
+- [Strategy](strategy.md) - buy/sell rule state and ranking-based exits.
+- [Ranking System XML](ranking-system-xml.md) - building ranking systems that `Rating`/`Rank` read.
