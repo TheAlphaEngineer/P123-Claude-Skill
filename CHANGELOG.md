@@ -1,5 +1,41 @@
 # Changelog
 
+## [4.2.1-tae.1] - 2026-11-12 (TheAlphaEngineer fork)
+
+Fork release on top of upstream 4.2.1. Upstream had already fixed what this fork patched before
+(long-only rule `type`, `AvgDailyTot` units, `IsNA` arity, the `.skill` ZIP layout), so the fork's
+older reference files are replaced by upstream's tree. Additions below were checked on the live API
+on 2026-11-12 with calls that end in an error (no credits), unless dated otherwise.
+
+### Added
+- **`references/global-data.md`**: P123's global release (security master 10-11 Oct 2026, APAC &
+  Emerging in production 31 Oct-2 Nov 2026). New universes `PRIMARYGLOBAL` and `PRIMARYAPEM`;
+  display names accepted as `universe` (`'Japan (Primary)'`, `'Developed APAC'`, `'World Frontier'`,
+  `'China A-Shares'`, 28 country primaries); countries without a country universe; a free way to
+  probe a universe ID; primary versus foreign primary; ticker suffixes and the per-listing
+  `p123Uid`; `TradesIn`, `ExchCountry`, `Country`, `IsPrimary`, `ExchangeCode` (APAC codes, beta
+  renumbering), `FXRate`; the 21 accepted currencies; the live `region` values; the data gaps
+  (missing cash flow in JPN/CHN/AUS/HKG/IND, ownership, short interest, survivorship) and P123's
+  Phase 2/3 roadmap.
+- `api.md`: verified `rank_perf` details (2026-09-29 to 10-07): `minLiquidity` in plain currency
+  units, `minPrice`/`minLiquidity` in the system currency, `minPrice` default 3, `pitMethod` mapping
+  to the GUI, the `ann`/`perf` output and how to rebuild the missing universe line.
+- `api.md`: what `strategy_rerun` can and cannot change on a simulation, its credit cost, and P123's
+  default transaction price (2026-10-21).
+- `api.md` Known Pitfalls: the five-year licence window of `POST /data`, `additionalData` needing a
+  licence on `rank_ranks`, today's ticker on past dates, `ApiUniverse` rules not readable.
+- `strategy.md`: price/liquidity floors in the universe versus in the buy rules.
+- `fundamentals.md`: `TradesIn()`, added to P123 after the 2026-06-09 extraction.
+- `SKILL.md`: routing row for `global-data.md`, four Common Mistakes rows, description mentions
+  non-US work.
+- Evals 32-34 (global universes, removed `ALLFUNDEUR`, APAC cash-flow NAs).
+
+### Fixed
+- **`ALLFUNDEUR` no longer exists** (`Universe <ALLFUNDEUR> not found`); upstream's 2026-09-17 list
+  still carried it. P123's own `Universe()` page still lists it, `CDR` and `AMEX`; none resolves.
+- **`POST /data` `region`**: the live API rejects `North Atlantic`, which the spec lists, and accepts
+  `Global` and `APAC & Emerging`. **`currency`** accepts 21 codes, not the spec's nine.
+
 ## [4.2.1] - 2026-10-31
 
 Patch release. It closes two of the loose ends that 4.2.0 listed as unresolved and records what else

@@ -142,6 +142,17 @@ is true only when it trades on a Canadian exchange.
 Country("GBR") and !ExchCountry("GBR")
 ```
 
+#### `TradesIn("cid, cid, cid, ...")`
+Added to P123 after the 2026-06-09 extraction (verified to parse on the live API 2026-11-12).
+Returns TRUE if the **company** has any listed issue trading in one of the countries on the
+as-of date, where `ExchCountry` tests only the listing being evaluated. Up to 20 country codes,
+separated by commas or spaces. Point-in-time since 2026-10-16. See
+[global-data.md](global-data.md#country-and-listing-functions).
+
+```p123
+TradesIn("USA CAN")
+```
+
 #### `NoEmp(offset, type[, NAHandling])`
 Number of employees for the period selected by `offset` and `type`.
 
@@ -401,7 +412,7 @@ global share-class-level FIGIs.
 
 | Factor | Description | Period |
 |---|---|---|
-| `ExchangeCode` | Returns the point in time exchange code where the listing trades |  |
+| `ExchangeCode` | Returns the point in time exchange code where the listing trades (numeric; APAC/EM codes and the beta-to-production renumbering in [global-data.md](global-data.md#country-and-listing-functions)) |  |
 
 #### FIGI Identifier
 

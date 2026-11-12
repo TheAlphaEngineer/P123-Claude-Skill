@@ -223,6 +223,12 @@ Notes on the verified patterns:
 - The `[Sell4]` rule ranks on average bid-ask spread; `[Sell5]` checks minimum daily dollar
   volume; `[Sell6]` ranks on the fraction of the industry in an uptrend.
 - `SecCount` and `IndCount` are diversification counts (see [Diversification](#diversification)).
+- **Price and liquidity floors: universe or buy rule?** Put in the universe, a floor such as
+  `Close(0) > 3` or `AvgDailyTot(20) > 100000` makes a held stock that drops below it leave the
+  universe and be sold as "NO RANK" (in one tested simulation, 2026-10-21, 57% of all sales). Put
+  in the buy rules instead, it only blocks new purchases, but `RankPos` then still counts the
+  stocks that cannot be bought, so a `RankPos <= N` buy rule can find fewer than N candidates.
+  Decide which effect you want, and remember the floor is in the system's currency.
 
 PR #4 wrote some names in lowercase (for example the moving-average and rank functions); this
 reference normalizes them to the canonical dictionary casing (`SMA`, `FRank`) throughout -

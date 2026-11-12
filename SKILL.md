@@ -10,8 +10,10 @@ description: >-
   formulas, build or fix ranking systems, construct screens or universes, replicate academic
   factor strategies (value, momentum, quality, low volatility) on P123, or pull P123 data
   programmatically (screen_run, screen_backtest, rank_ranks, data_universe, AI Factor
-  predictions). Covers all 4,463 factors and 465 functions of the official Factor Reference in
-  13 category files, plus the full REST API (39 operations) and 9 runnable example scripts.
+  predictions), including non-US work: Canada, Europe, APAC, Emerging and Global universes,
+  country filters and currencies. Covers all 4,463 factors and 465 functions of the official
+  Factor Reference in 13 category files, plus the full REST API (39 operations), the global data
+  release of autumn 2026, and 9 runnable example scripts.
 license: MIT
 ---
 
@@ -46,6 +48,7 @@ Read only what the task needs:
 | Simulated-strategy context: buy/sell rule factors (Rank, RankPos, portfolio state), rule patterns, rebalance idioms | [references/strategy.md](references/strategy.md) |
 | Universe-wide aggregates: UnivAvg, UnivCnt, UnivMedian, UnivSum, ... | [references/universe-operations.md](references/universe-operations.md) |
 | Universe definition filters: UnivExclude, UnivSubset, UnivRBICS | [references/universe-filters.md](references/universe-filters.md) |
+| **Anything outside the US**: Canada, Europe, APAC & Emerging and Global universes (`PRIMARYGLOBAL`, `PRIMARYAPEM`, `'Japan (Primary)'`), removed IDs (`ALLFUNDEUR`), `TradesIn`/`ExchCountry`/`Country`, exchange codes, currencies and `region` values, ticker suffixes (`RY:CAN`), and the APAC data gaps (missing cash flow) | [references/global-data.md](references/global-data.md) |
 | Benchmark series access: BenchClose | [references/benchmark-functions.md](references/benchmark-functions.md) |
 | Sector/industry classification (RBICS): Sector, IndCode, SubIndustry, sector/industry composites | [references/industry-sector.md](references/industry-sector.md) |
 | ETF taxonomy vocabularies (ETF contexts): asset class, country, region, sector sets | [references/taxonomy.md](references/taxonomy.md) |
@@ -155,6 +158,10 @@ per-category tables live in each reference file's Common Mistakes section):
 | `Sqrt(x)` / `Exp(x)` | `x^0.5` / `2.718281828^x` | no root or exp function; `^` is the power operator |
 | `PlusDI` / `MinusDI` | `DMIPlus` / `DMIMinus` | directional indicators |
 | `IndustryCode` | `IndCode` | classification factor |
+| `AvgDailyTot(63) > 500` meant as $500K a day | `AvgDailyTot(63) > 500000` | dollar volume and the API's `minLiquidity` are plain currency units; `MktCap` and statement items are millions |
+| `'universe': 'ALLFUND'` for a global screen | `'universe': 'PRIMARYGLOBAL'` | `ALLFUND` holds US listings only; see global-data.md |
+| `'universe': 'ALLFUNDEUR'` | `'universe': 'PRIMARYEUR'` | removed in October 2026 (`Universe <ALLFUNDEUR> not found`) |
+| `'universe': 'PRIMARYJPN'` | `'universe': 'Japan (Primary)'` | APAC country universes have no short ID; the exact display name works |
 
 When unsure about any name, grep the relevant reference file before writing it.
 

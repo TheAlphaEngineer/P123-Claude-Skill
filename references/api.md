@@ -265,6 +265,11 @@ available date, see [Known Pitfalls](#known-pitfalls)), `frequency` (default `Ev
 `benchmark`, `includeNames`, `ignoreErrors` (default true). Free trial: IBM, MSFT, INTC, 5Y.
 Response keyed by `p123Uids`. That nine-value `Currency` enum - widened from five on 2026-08-28 -
 is shared: the same values apply wherever `currency` appears below.
+**Live values differ from the spec since the global release (verified 2026-11-12):** `region`
+accepts `United States`, `Canada`, `North America`, `Europe`, `Global` and `APAC & Emerging` and
+**rejects `North Atlantic`**; `currency` accepts 21 codes, the nine above plus `JPY`, `AUD`, `HKD`,
+`KRW`, `INR`, `CNY`, `TWD`, `SGD`, `NZD`, `BRL`, `ILS` and `MXN`. See
+[global-data.md](global-data.md#currencies-regions-and-fx-in-the-api).
 
 **`POST /data/universe`** - Get Universe Data. Wrapper: `data_universe(params, to_pandas=False)`.
 Body `DataUniverseParams`: required `formulas` and `universe` (name or id; `ApiUniverse` for a
@@ -399,6 +404,26 @@ Body `RankPerfParams`: required `rankingSystem` (name or id) and `startDt`. Opti
 `precision`, `rankingMethod`. Response is `RankPerfRetResult` (`bucketAnnRet`) or
 `RankPerfDetailedResult` (series), depending on `outputType`.
 
+Verified on the live API (2026-09-29 to 2026-10-07):
+
+- **`minLiquidity` is in plain currency units, not thousands**: `100000` means $100K of average
+  daily dollar volume. A run with `minLiquidity` 1e8 still returned populated buckets, which is
+  impossible if the unit were thousands ($100B a day). Passing `100` "for $100K" runs with
+  effectively no liquidity filter. The same holds for `AvgDailyTot()` in formulas.
+- **`minPrice` and `minLiquidity` apply in the ranking system's currency** (USD by default), not
+  the stock's local currency. Omitting `minPrice` defaults it to 3; pass `0` for no price floor.
+- **`pitMethod: 'Complete'`** (the default) equals the GUI setting "Prelim: Exclude".
+- **Output.** `ann`: `bucketAnnRet`, ordered from the bottom of the ranking (first bucket) to the
+  top (last bucket), plus `benchmarkAnnRet`. `perf`: `dates` (rebalance dates), `bucketSeries`
+  (index levels starting at 100, one list per bucket) and `benchmarkSeries`. P123 annualizes as
+  `(last/first)^(365.25/days) - 1` between the first and the last rebalance date (the last one on
+  or before `endDt`); this reproduces `ann` exactly from `perf`.
+- **No universe line.** The GUI's equal-weighted "Universe" return is not in the response. To get
+  it, run a `screen_backtest` with `maxNumHoldings: 0` and the rules `Close(0) >= <minPrice>` and
+  `AvgDailyTot(20) >= <minLiquidity>`, or take the `perf` output of a factor with no NAs (such as
+  `MktCap`) and average the per-period bucket returns before compounding. The mean of the bucket
+  CAGRs slightly understates it.
+
 **`POST /rank/ranks`** - Ranks. Wrapper: `rank_ranks(params, to_pandas=False)`.
 Body `RankRanksParams`: required `rankingSystem` and `asOfDt`. Optional: `universe`, `tickers`,
 `includeNames`, `includeNaCnt`, `includeFinalStmt`, `nodeDetails` (`composite` | `factor`),
@@ -530,6 +555,18 @@ live strategy, `DM` designer model, `PRC` stock or ETF - and `relativeWeight`); 
 **`POST /strategy/{id}/rerun`** - Simulation Rerun. Wrapper: `strategy_rerun(strategy_id, params)`.
 Path `id`. Body `SimRerunParams`: trading-system fields plus required `startDt`/`endDt` and
 optional `saveTrans`. Mutating when `saveTrans` is set.
+
+**What the API can change on a simulation (verified 2026-10-21, `p123api` 3.1.0).**
+`strategy_trading_system_update` refuses simulations (`Only Strategy supported`); use
+`strategy_rerun`. It accepts and applies `universe`, `rankingSystem`, `rankingMethod`, `buyRules`,
+`sellRules` (an empty list clears them), `rebalance` (`sizingMethod`, `posWeight`, `rebalFreq`) and
+`startDt`/`endDt`/`saveTrans`. The stored `rebalFreq` label can stay stale after a rerun, so check
+the trade dates instead. **Not settable through the API:** slippage, commission, starting capital,
+benchmark and transaction price. To vary them, keep base simulations set up in the GUI, copy one with
+`strategy_copy` and rerun the copy (never rerun the base). Copy, rerun, statistics and transactions
+cost 1 credit each, so about 4 per simulation; API results matched the GUI to the dollar. P123's
+default transaction price is the next day's average of high, low and two times the close;
+`screen_backtest` offers only next open, next close or the next high/low average.
 
 **`POST /strategy/{id}/book-rerun`** - Book Simulation Rerun. Wrapper: `book_rerun(strategy_id, params)`.
 Path `id`. Body `BookSimRerunParams`: `assets`, required `startDt`/`endDt`.
@@ -971,7 +1008,24 @@ parameter name, **the wrapper wins** (it is closer to production).
 - **A formula that cannot be parsed or evaluated is HTTP 409 and names the token.** A bare line-item or
   function name gives `In Formula 1: Error near 'OperCashFl': Missing left parenthesis`, and a `Sharpe`
   range out of bounds gives `Parameter period must be between 5 and 501`. The bare-name call observed
-  on 2026-10-31 was not charged.
+  on 2026-10-31 was not charged. Because the universe is checked before the formulas, a deliberately
+  bad formula also makes a free probe of a universe ID; see
+  [global-data.md](global-data.md#probing-a-universe-id-for-free).
+
+- **The license-free `POST /data` window is about five years.** Older dates on IBM, INTC and MSFT fail
+  with `You can only test historical data after <date>` (observed 2026-09-29).
+
+- **`rank_ranks` with `additionalData` needs a data license.** Without one it fails with
+  `A data license is required for this operation`, while ranks, `includeNaCnt` and `nodeDetails`
+  work on the same account (2026-10-07). For tickers, prices, `MktCap` and sector of a universe
+  without a license, run `screen_run` with `maxNumHoldings: 0`.
+
+- **Results show today's ticker, also for past dates.** A screen or rank for an old `asOfDt` labels
+  each stock with its current ticker, and tickers change (a delisted `SLP` became `SLP^26`
+  overnight). Compare saved results by `p123Uid`, never by ticker.
+
+- **`ApiUniverse` cannot be read back.** There is no read operation for a universe's rules, so after
+  `universe_update` verify it by running a screen on it, and keep your own copy of the rules.
 
 - **`pip install p123api` no longer installs pandas.** In 3.x pandas is an optional extra; in 2.x
   it was a hard requirement imported at module load. 3.1.0 imports it lazily *inside* each
@@ -1038,9 +1092,17 @@ the live API on 2026-09-17 with a one-row `screen_run`.
 | Region | Verified IDs |
 |---|---|
 | Canada | `ALLFUNDCAN`, `PRIMARYCAN`, `ALLSTOCKSCAN`, `SPTSX`, `SPTSX60`, `TSX`, `TSXV`, `CanadaTrust`, `ALLFUNDCDRCAD` |
-| Europe | `ALLFUNDEUR`, `PRIMARYEUR`, `EU600`, `EU200L`, `EU200M`, `EU200S`, `TRADEEUR` |
+| Europe | `PRIMARYEUR`, `EU600`, `EU200L`, `EU200M`, `EU200S`, `TRADEEUR` (`ALLFUNDEUR` removed in October 2026, see below) |
 | Multi-region | `PRIMARYNOAM`, `PRIMARYNOAT`, `TRADENOAM`, `TRADENOAT` |
 | United States | `PRIMARYUSA`, `TRADEUSA`, `NanoCap` |
+
+**Re-checked 2026-11-12, after the October security master and the global release:** every ID above
+still resolves, **except `ALLFUNDEUR`** ("Europe (Incl. Foreign Primary)"), which now answers
+`Universe <ALLFUNDEUR> not found`; P123 retired Europe's foreign-primary universe and re-pointed saved
+systems to `PRIMARYEUR`. New since then: `PRIMARYGLOBAL` and `PRIMARYAPEM`, plus APAC, country and
+frontier universes addressed by display name (`'Japan (Primary)'`, `'Developed APAC'`). Display names
+work for the older universes too. The full list, the removed IDs and the data gaps outside North
+America are in [global-data.md](global-data.md).
 
 A universe named CDR was reported alongside these and does **not** exist: the server answers
 `Universe <CDR> not found`. The Canadian-dollar CDR universe is `ALLFUNDCDRCAD`.

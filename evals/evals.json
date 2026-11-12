@@ -337,6 +337,39 @@
         "Notes that nodes is the field to send when writing the XML back",
         "Says the typed result must be read with attributes, not subscripts"
       ]
+    },
+    {
+      "id": 32,
+      "prompt": "Using the P123 API, I want to screen Japanese stocks and, separately, run a ranking on the whole world. Which universe values do I pass, and is ALLFUND the right global universe?",
+      "expected_output": "Japan has no short ID; pass the exact display name 'Japan (Primary)' (display names are accepted as the universe parameter), or PRIMARYAPEM with Country(\"JPN\") / ExchCountry(\"JPN\"). For the whole world use PRIMARYGLOBAL ('Global (Primary)'). ALLFUND is not global: it holds US-listed securities and ADRs only.",
+      "expectations": [
+        "Gives 'Japan (Primary)' or PRIMARYAPEM plus a Japan country filter for Japan",
+        "Gives PRIMARYGLOBAL (or 'Global (Primary)') for the world",
+        "Says ALLFUND is US-listed only, not global",
+        "Does not invent an ID such as PRIMARYJPN or ALLFUNDJPN"
+      ]
+    },
+    {
+      "id": 33,
+      "prompt": "My old P123 script runs screen_run with 'universe': 'ALLFUNDEUR' and now fails with 'Universe <ALLFUNDEUR> not found'. It worked in September. What happened and what should I use?",
+      "expected_output": "P123's October 2026 security master retired Europe's foreign-primary universe (Europe (Incl. Foreign Primary) = ALLFUNDEUR) and re-pointed saved systems to Europe (Primary). Use PRIMARYEUR; to include global companies that also trade in Europe, start from PRIMARYGLOBAL and add TradesIn(...) with the European country codes. Membership differs from the old universe, so results will not match earlier runs.",
+      "expectations": [
+        "Explains that ALLFUNDEUR was removed with the October 2026 change",
+        "Recommends PRIMARYEUR",
+        "Mentions PRIMARYGLOBAL with TradesIn() for global companies trading in Europe",
+        "Warns that results differ from runs before the change"
+      ]
+    },
+    {
+      "id": 34,
+      "prompt": "I ran my US quality ranking (Piotroski F-Score, FCF yield, accruals) on Japan and Hong Kong in P123 and a large share of stocks get NA on those nodes. Is my formula wrong?",
+      "expected_output": "Probably not. As of November 2026 many stocks in Japan, China, Australia, Hong Kong and India have no usable cash-flow data in P123 (semi-annual cash-flow statements combined with quarterly statements), so cash-flow factors such as FCFYield, OperCashFlTTM, accrual measures and PiotFScore are NA. P123 plans the fix in Phase 2 (December 2026). Check NA counts per country (rank_ranks with includeNaCnt), and decide how the ranking treats NAs or drop those nodes for APAC until the fix.",
+      "expectations": [
+        "Identifies the known APAC cash-flow data gap rather than a formula error",
+        "Names the affected countries or at least Japan and Hong Kong",
+        "Mentions the planned Phase 2 fix (December 2026)",
+        "Suggests checking NA counts and handling NAs or the nodes explicitly"
+      ]
     }
   ]
 }

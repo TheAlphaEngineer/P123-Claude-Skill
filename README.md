@@ -16,7 +16,13 @@ Claude into a reliable Portfolio123 (P123) assistant: writing screen rules and f
 building ranking-system XML, replicating published factors, and pulling data through the REST API
 with the official `p123api` Python wrapper.
 
-**v4.2.1** is the current release: a patch that settles the `GET /rank` response field (`xml`), the
+> **About this fork (TheAlphaEngineer).** This is upstream v4.2.1 plus
+> `references/global-data.md` and a few API facts verified on a live account: P123's autumn-2026
+> global release (APAC & Emerging and Global universes, the removed `ALLFUNDEUR`, accepted currencies
+> and `region` values, the APAC cash-flow gap) and `rank_perf` / simulation-API details. See
+> `CHANGELOG.md` → `[4.2.1-tae.1]`. Everything below is upstream's text.
+
+**v4.2.1** is the current upstream release: a patch that settles the `GET /rank` response field (`xml`), the
 real numerator of `DepAmort2GP` (`DepAmortCF`) and how `POST /data` treats its date range.
 
 **4.2.0** was a live-data audit of the skill. A Portfolio123 forum member
@@ -95,9 +101,10 @@ portfolio123/
 │   ├── taxonomy.md               # 8 functions / 8 factors (ETF vocabularies)
 │   ├── misc.md                   # 43 functions / 20 factors + 473 constants, series IDs, operators
 │   ├── factor-replication.md     # 35 published-factor recipes, node direction/scope, traps
+│   ├── global-data.md            # (this fork) Europe/APAC/EM/Global universes, currencies, data gaps
 │   └── ranking-system-xml.md     # Validated ranking XML schema; always read before XML work
 ├── scripts/                      # 9 runnable CLI examples + p123_helpers.py (see scripts/README.md)
-├── evals/evals.json              # 31 evaluation prompts (repo only; excluded from the .skill package)
+├── evals/evals.json              # 34 evaluation prompts (repo only; excluded from the .skill package)
 ├── docs/                         # repository assets (excluded from the .skill package)
 ├── BUILD-STATE.md                # build & verification log for this release
 ├── README.md · CHANGELOG.md · LICENSE · .gitignore

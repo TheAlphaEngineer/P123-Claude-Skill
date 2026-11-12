@@ -1034,6 +1034,10 @@ the official factor totals.
 
 ### Universe IDs
 
+These are the US universe IDs of the 2026-06-09 extraction. For Canada, Europe, multi-region and the
+APAC, Emerging and Global universes added in October-November 2026 (`PRIMARYGLOBAL`, `PRIMARYAPEM`,
+`'Japan (Primary)'` ...), see [global-data.md](global-data.md#universes).
+
 | Code | Description |
 |---|---|
 | `ALLFUND` | All Fundamentals. US-**listed** securities, including foreign companies through their US lines and ADRs - not a global universe (verified live 2026-09-17; see [api.md](api.md#regional-universe-ids-verified-live-2026-09-17)). |
